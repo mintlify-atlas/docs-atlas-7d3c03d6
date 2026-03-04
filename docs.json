@@ -116,6 +116,10 @@
               "api/messages/send-audio",
               "api/messages/send-location",
               "api/messages/send-contact",
+              "api/messages/send-poll",
+              "api/messages/send-buttons",
+              "api/messages/send-list",
+              "api/messages/send-reaction",
               "api/messages/status"
             ]
           },

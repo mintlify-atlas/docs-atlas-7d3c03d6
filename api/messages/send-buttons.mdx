@@ -1,0 +1,175 @@
+---
+title: Send buttons
+api: POST /message/sendButtons/:instanceName
+description: Send an interactive message with action buttons
+---
+
+## Request
+
+Send a message with interactive buttons that users can tap to perform actions.
+
+<ParamField path="instanceName" type="string" required>
+  Name of the instance
+</ParamField>
+
+### Body parameters
+
+<ParamField body="number" type="string" required>
+  Recipient's WhatsApp number with country code (e.g., "5511999999999")
+</ParamField>
+
+<ParamField body="title" type="string" required>
+  Main title text of the message
+</ParamField>
+
+<ParamField body="description" type="string">
+  Description or body text
+</ParamField>
+
+<ParamField body="footer" type="string">
+  Footer text displayed at the bottom
+</ParamField>
+
+<ParamField body="buttons" type="array" required>
+  Array of button objects
+  
+  <Expandable title="Button properties">
+    <ParamField body="type" type="string" required>
+      Button type: "reply", "copy", "url", "call", or "pix"
+    </ParamField>
+    <ParamField body="displayText" type="string">
+      Text displayed on the button
+    </ParamField>
+    <ParamField body="id" type="string">
+      Button identifier (for reply buttons)
+    </ParamField>
+    <ParamField body="url" type="string">
+      URL to open (for url buttons)
+    </ParamField>
+    <ParamField body="phoneNumber" type="string">
+      Phone number to call (for call buttons)
+    </ParamField>
+    <ParamField body="copyCode" type="string">
+      Text to copy (for copy buttons)
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="thumbnailUrl" type="string">
+  URL of an image thumbnail to display
+</ParamField>
+
+<ParamField body="delay" type="number">
+  Delay in milliseconds before sending
+</ParamField>
+
+## Response
+
+<ResponseField name="key" type="object">
+  Message key information
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  Button message details
+</ResponseField>
+
+## Example request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/message/sendButtons/my-instance \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "number": "5511999999999",
+    "title": "Choose an action",
+    "description": "Select one of the options below",
+    "footer": "Powered by Evolution API",
+    "buttons": [
+      {
+        "type": "reply",
+        "displayText": "Option 1",
+        "id": "option-1"
+      },
+      {
+        "type": "url",
+        "displayText": "Visit Website",
+        "url": "https://evolution-api.com"
+      },
+      {
+        "type": "call",
+        "displayText": "Call Us",
+        "phoneNumber": "5511999999999"
+      }
+    ]
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api.com/message/sendButtons/my-instance', {
+  method: 'POST',
+  headers: {
+    'apikey': 'YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    number: '5511999999999',
+    title: 'Choose an action',
+    description: 'Select one of the options below',
+    footer: 'Powered by Evolution API',
+    buttons: [
+      { type: 'reply', displayText: 'Option 1', id: 'option-1' },
+      { type: 'url', displayText: 'Visit Website', url: 'https://evolution-api.com' },
+      { type: 'call', displayText: 'Call Us', phoneNumber: '5511999999999' }
+    ]
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+</CodeGroup>
+
+## Button types
+
+<AccordionGroup>
+  <Accordion title="Reply buttons">
+    Reply buttons send a text response back when clicked. Use the `id` field to identify which button was clicked in webhook events.
+    
+    ```json
+    {
+      "type": "reply",
+      "displayText": "Yes",
+      "id": "confirm-yes"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="URL buttons">
+    URL buttons open a web link when clicked.
+    
+    ```json
+    {
+      "type": "url",
+      "displayText": "Visit Website",
+      "url": "https://example.com"
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Call buttons">
+    Call buttons initiate a phone call when clicked.
+    
+    ```json
+    {
+      "type": "call",
+      "displayText": "Call Support",
+      "phoneNumber": "5511999999999"
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  You can include up to 3 buttons in a single message. Button support varies by WhatsApp client version.
+</Note>

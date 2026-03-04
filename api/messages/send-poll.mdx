@@ -1,0 +1,110 @@
+---
+title: Send poll
+api: POST /message/sendPoll/:instanceName
+description: Send a poll message with multiple choice options
+---
+
+## Request
+
+Send a poll (voting) message to a WhatsApp number.
+
+<ParamField path="instanceName" type="string" required>
+  Name of the instance
+</ParamField>
+
+### Body parameters
+
+<ParamField body="number" type="string" required>
+  Recipient's WhatsApp number with country code (e.g., "5511999999999")
+</ParamField>
+
+<ParamField body="name" type="string" required>
+  Poll question or title
+</ParamField>
+
+<ParamField body="selectableCount" type="number" required>
+  Maximum number of options that can be selected (1 for single choice, >1 for multiple choice)
+</ParamField>
+
+<ParamField body="values" type="array" required>
+  Array of poll options (strings)
+</ParamField>
+
+<ParamField body="delay" type="number">
+  Delay in milliseconds before sending
+</ParamField>
+
+## Response
+
+<ResponseField name="key" type="object">
+  Message key information
+  
+  <Expandable title="properties">
+    <ResponseField name="remoteJid" type="string">
+      Recipient's JID
+    </ResponseField>
+    <ResponseField name="fromMe" type="boolean">
+      Whether the message is from you
+    </ResponseField>
+    <ResponseField name="id" type="string">
+      Message ID
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  Poll message details
+</ResponseField>
+
+## Example request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/message/sendPoll/my-instance \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "number": "5511999999999",
+    "name": "What is your favorite color?",
+    "selectableCount": 1,
+    "values": [
+      "Red",
+      "Blue",
+      "Green",
+      "Yellow"
+    ]
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api.com/message/sendPoll/my-instance', {
+  method: 'POST',
+  headers: {
+    'apikey': 'YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    number: '5511999999999',
+    name: 'What is your favorite color?',
+    selectableCount: 1,
+    values: ['Red', 'Blue', 'Green', 'Yellow']
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+</CodeGroup>
+
+## Notes
+
+<Note>
+  - Set `selectableCount` to 1 for single-choice polls
+  - Set `selectableCount` to a number greater than 1 for multiple-choice polls
+  - Maximum number of poll options is 12
+  - Poll results are visible to all participants
+</Note>
+
+<Warning>
+  Polls are only supported on WhatsApp versions that support the poll feature. Older clients may not be able to vote.
+</Warning>

@@ -1,0 +1,137 @@
+---
+title: Send reaction
+api: POST /message/sendReaction/:instanceName
+description: Send an emoji reaction to a message
+---
+
+## Request
+
+React to a message with an emoji. Reactions appear next to the message and are visible to all chat participants.
+
+<ParamField path="instanceName" type="string" required>
+  Name of the instance
+</ParamField>
+
+### Body parameters
+
+<ParamField body="key" type="object" required>
+  Message key identifying the message to react to
+  
+  <Expandable title="Key properties">
+    <ParamField body="remoteJid" type="string" required>
+      Chat JID (e.g., "5511999999999@s.whatsapp.net" for individual, "123456789@g.us" for group)
+    </ParamField>
+    <ParamField body="fromMe" type="boolean" required>
+      Whether the message to react to is from you (true) or from the other participant (false)
+    </ParamField>
+    <ParamField body="id" type="string" required>
+      Message ID to react to
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="reaction" type="string" required>
+  Emoji to react with (e.g., "👍", "❤️", "😂"). Use an empty string "" to remove a reaction.
+</ParamField>
+
+## Response
+
+<ResponseField name="key" type="object">
+  Message key information
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  Reaction message details
+</ResponseField>
+
+## Example request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/message/sendReaction/my-instance \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0F2F5E6B5F5B5F5B5F5B5F5B5F5B5"
+    },
+    "reaction": "👍"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api.com/message/sendReaction/my-instance', {
+  method: 'POST',
+  headers: {
+    'apikey': 'YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    key: {
+      remoteJid: '5511999999999@s.whatsapp.net',
+      fromMe: false,
+      id: '3EB0F2F5E6B5F5B5F5B5F5B5F5B5F5B5'
+    },
+    reaction: '👍'
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+</CodeGroup>
+
+## Common reactions
+
+<AccordionGroup>
+  <Accordion title="Add a reaction">
+    Send any emoji as the `reaction` value:
+    
+    ```json
+    {
+      "key": { ...messageKey },
+      "reaction": "❤️"
+    }
+    ```
+    
+    Common reactions:
+    - 👍 Thumbs up
+    - ❤️ Heart
+    - 😂 Laughing
+    - 😮 Surprised
+    - 😢 Sad
+    - 🙏 Thank you
+  </Accordion>
+  
+  <Accordion title="Remove a reaction">
+    To remove your reaction, send an empty string:
+    
+    ```json
+    {
+      "key": { ...messageKey },
+      "reaction": ""
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Getting the message key
+
+To react to a message, you need its message key. You can obtain this from:
+
+1. **Webhook events**: When you receive a message via webhook, the `key` object is included
+2. **Send message response**: When you send a message, the response includes the message `key`
+3. **Message history**: Retrieve messages using the chat endpoints
+
+<Note>
+  The message key format varies:
+  - Individual chats: `number@s.whatsapp.net`
+  - Group chats: `groupId@g.us`
+  - Business chats: `number@lid` (for Business API)
+</Note>
+
+<Tip>
+  You can change your reaction by sending a new reaction to the same message. The previous reaction will be replaced.
+</Tip>

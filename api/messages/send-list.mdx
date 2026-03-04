@@ -1,0 +1,174 @@
+---
+title: Send list
+api: POST /message/sendList/:instanceName
+description: Send an interactive list message with multiple sections and rows
+---
+
+## Request
+
+Send a message with an interactive list that users can open to see multiple options organized in sections.
+
+<ParamField path="instanceName" type="string" required>
+  Name of the instance
+</ParamField>
+
+### Body parameters
+
+<ParamField body="number" type="string" required>
+  Recipient's WhatsApp number with country code (e.g., "5511999999999")
+</ParamField>
+
+<ParamField body="title" type="string" required>
+  Main title text of the message
+</ParamField>
+
+<ParamField body="description" type="string">
+  Description text shown in the message body
+</ParamField>
+
+<ParamField body="buttonText" type="string" required>
+  Text displayed on the button that opens the list
+</ParamField>
+
+<ParamField body="footerText" type="string">
+  Footer text displayed at the bottom
+</ParamField>
+
+<ParamField body="sections" type="array" required>
+  Array of section objects containing rows
+  
+  <Expandable title="Section properties">
+    <ParamField body="title" type="string" required>
+      Section title
+    </ParamField>
+    <ParamField body="rows" type="array" required>
+      Array of row objects
+      
+      <Expandable title="Row properties">
+        <ParamField body="title" type="string" required>
+          Row title
+        </ParamField>
+        <ParamField body="description" type="string" required>
+          Row description
+        </ParamField>
+        <ParamField body="rowId" type="string" required>
+          Unique identifier for the row
+        </ParamField>
+      </Expandable>
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="delay" type="number">
+  Delay in milliseconds before sending
+</ParamField>
+
+## Response
+
+<ResponseField name="key" type="object">
+  Message key information
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  List message details
+</ResponseField>
+
+## Example request
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/message/sendList/my-instance \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "number": "5511999999999",
+    "title": "Product Catalog",
+    "description": "Choose a product category",
+    "buttonText": "View Products",
+    "footerText": "Evolution API Store",
+    "sections": [
+      {
+        "title": "Electronics",
+        "rows": [
+          {
+            "title": "Smartphone",
+            "description": "Latest model smartphones",
+            "rowId": "product-smartphone"
+          },
+          {
+            "title": "Laptop",
+            "description": "High-performance laptops",
+            "rowId": "product-laptop"
+          }
+        ]
+      },
+      {
+        "title": "Accessories",
+        "rows": [
+          {
+            "title": "Headphones",
+            "description": "Wireless and wired options",
+            "rowId": "product-headphones"
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api.com/message/sendList/my-instance', {
+  method: 'POST',
+  headers: {
+    'apikey': 'YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    number: '5511999999999',
+    title: 'Product Catalog',
+    description: 'Choose a product category',
+    buttonText: 'View Products',
+    footerText: 'Evolution API Store',
+    sections: [
+      {
+        title: 'Electronics',
+        rows: [
+          { title: 'Smartphone', description: 'Latest model smartphones', rowId: 'product-smartphone' },
+          { title: 'Laptop', description: 'High-performance laptops', rowId: 'product-laptop' }
+        ]
+      },
+      {
+        title: 'Accessories',
+        rows: [
+          { title: 'Headphones', description: 'Wireless and wired options', rowId: 'product-headphones' }
+        ]
+      }
+    ]
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+</CodeGroup>
+
+## Notes
+
+<Note>
+  - List messages can contain multiple sections
+  - Each section can have multiple rows (up to 10 rows per section recommended)
+  - Use the `rowId` to identify which option was selected in webhook events
+  - The list appears as a menu when the user taps the button
+</Note>
+
+<Tip>
+  Lists are ideal for:
+  - Product catalogs
+  - Service menus
+  - FAQ categories
+  - Navigation menus
+</Tip>
+
+<Warning>
+  List messages are only supported on WhatsApp versions that support interactive messages. Older clients may not render the list properly.
+</Warning>
