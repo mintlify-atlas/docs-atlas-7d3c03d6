@@ -1,0 +1,193 @@
+{
+  "projectType": "api-service",
+  "projectName": "Evolution API",
+  "projectDescription": "A comprehensive WhatsApp integration API supporting multiple messaging services, chatbot platforms, and event streaming systems with multi-tenant architecture.",
+  "theme": "sequoia",
+  "primaryColor": "#25D366",
+  "lightColor": "#128C7E",
+  "darkColor": "#075E54",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/instances",
+              "concepts/authentication",
+              "concepts/webhooks",
+              "concepts/multi-tenant"
+            ]
+          },
+          {
+            "group": "WhatsApp Integration",
+            "pages": [
+              "whatsapp/baileys",
+              "whatsapp/business-api",
+              "whatsapp/connections"
+            ]
+          },
+          {
+            "group": "Chatbot Integrations",
+            "pages": [
+              "integrations/typebot",
+              "integrations/chatwoot",
+              "integrations/dify",
+              "integrations/openai",
+              "integrations/flowise",
+              "integrations/n8n",
+              "integrations/evoai"
+            ]
+          },
+          {
+            "group": "Event Systems",
+            "pages": [
+              "events/webhooks",
+              "events/rabbitmq",
+              "events/kafka",
+              "events/sqs",
+              "events/websocket",
+              "events/pusher"
+            ]
+          },
+          {
+            "group": "Storage & Media",
+            "pages": [
+              "storage/s3",
+              "storage/minio"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/environment-variables",
+              "deployment/database"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview",
+              "api/authentication",
+              "api/errors"
+            ]
+          },
+          {
+            "group": "Instance Management",
+            "pages": [
+              "api/instance/create",
+              "api/instance/list",
+              "api/instance/connect",
+              "api/instance/delete"
+            ]
+          },
+          {
+            "group": "Messaging",
+            "pages": [
+              "api/messages/send-text",
+              "api/messages/send-media",
+              "api/messages/send-audio",
+              "api/messages/send-location",
+              "api/messages/send-contact",
+              "api/messages/status"
+            ]
+          },
+          {
+            "group": "Chats",
+            "pages": [
+              "api/chats/list",
+              "api/chats/find",
+              "api/chats/archive",
+              "api/chats/delete"
+            ]
+          },
+          {
+            "group": "Groups",
+            "pages": [
+              "api/groups/create",
+              "api/groups/info",
+              "api/groups/participants",
+              "api/groups/settings"
+            ]
+          },
+          {
+            "group": "Contacts",
+            "pages": [
+              "api/contacts/list",
+              "api/contacts/profile"
+            ]
+          },
+          {
+            "group": "Labels",
+            "pages": [
+              "api/labels/create",
+              "api/labels/assign"
+            ]
+          },
+          {
+            "group": "Settings",
+            "pages": [
+              "api/settings/profile",
+              "api/settings/privacy"
+            ]
+          },
+          {
+            "group": "Proxy",
+            "pages": [
+              "api/proxy/configure"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multi-tenant WhatsApp API with Baileys and Business API support",
+    "Integration with 7+ chatbot platforms (Typebot, Chatwoot, Dify, OpenAI, etc.)",
+    "Event streaming via RabbitMQ, Kafka, SQS, WebSocket, and Pusher",
+    "S3/MinIO media storage with automatic file management",
+    "Multi-database support (PostgreSQL, MySQL) with Prisma ORM",
+    "QR code authentication and connection management",
+    "Comprehensive webhook system with retry logic",
+    "RESTful API for message, chat, group, and contact operations"
+  ],
+  "publicApiSurface": [
+    "POST /instance/create - Create new WhatsApp instance",
+    "GET /instance/fetchInstances - List all instances",
+    "POST /instance/connect/:instanceName - Connect instance",
+    "DELETE /instance/delete/:instanceName - Delete instance",
+    "POST /message/sendText/:instanceName - Send text message",
+    "POST /message/sendMedia/:instanceName - Send media message",
+    "POST /message/sendAudio/:instanceName - Send audio message",
+    "POST /message/sendLocation/:instanceName - Send location",
+    "POST /message/sendContact/:instanceName - Send contact",
+    "GET /chat/findChats/:instanceName - Find chats",
+    "POST /chat/archiveChat/:instanceName - Archive chat",
+    "POST /group/create/:instanceName - Create group",
+    "GET /group/findGroupInfo/:instanceName - Get group info",
+    "POST /group/updateParticipant/:instanceName - Update group participant",
+    "GET /chat/findContacts/:instanceName - Find contacts",
+    "POST /label/create/:instanceName - Create label",
+    "POST /settings/updateProfileName/:instanceName - Update profile",
+    "POST /proxy/set/:instanceName - Configure proxy",
+    "POST /webhook/set/:instanceName - Configure webhook",
+    "POST /typebot/create/:instanceName - Create Typebot integration",
+    "POST /chatwoot/create/:instanceName - Create Chatwoot integration",
+    "POST /openai/create/:instanceName - Create OpenAI integration"
+  ]
+}
