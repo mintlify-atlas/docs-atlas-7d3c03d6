@@ -1,80 +1,326 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get started with Evolution API in under 5 minutes using Docker"
 ---
 
-## Get started in three steps
+## Get started with Evolution API
 
-Get your documentation site running locally and make your first customization.
+Evolution API is a powerful WhatsApp integration platform that supports multiple messaging services. This guide will help you set up your first instance and send your first message in minutes.
 
-### Step 1: Set up your local environment
+<Note>
+  Evolution API supports both WhatsApp Web (Baileys) and WhatsApp Business API. This quickstart uses the free Baileys integration.
+</Note>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Docker and Docker Compose installed
+- A phone with WhatsApp installed for QR code scanning
+- An API key for authentication
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the Evolution API repository to your local machine:
+
+    ```bash
+    git clone https://github.com/EvolutionAPI/evolution-api.git
+    cd evolution-api
+    ```
+  </Step>
+
+  <Step title="Configure environment variables">
+    Copy the example environment file and configure your settings:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit the `.env` file with your configuration. At minimum, set these critical variables:
+
+    ```bash .env
+    # Server Configuration
+    SERVER_URL=http://localhost:8080
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    # Authentication - Generate a secure random key
+    AUTHENTICATION_API_KEY=your-secure-api-key-here
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    # Database - PostgreSQL (recommended)
+    DATABASE_PROVIDER=postgresql
+    DATABASE_CONNECTION_URI='postgresql://user:pass@postgres:5432/evolution_db?schema=evolution_api'
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    # Cache - Redis
+    CACHE_REDIS_ENABLED=true
+    CACHE_REDIS_URI=redis://redis:6379/6
+    ```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    <Tip>
+      Generate a secure API key using: `openssl rand -hex 32`
+    </Tip>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Start the services">
+    Launch Evolution API with Docker Compose:
 
-### Step 3: Go live
+    ```bash
+    docker-compose up -d
+    ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    This starts:
+    - Evolution API (port 8080)
+    - Evolution Manager frontend (port 3000)
+    - PostgreSQL database
+    - Redis cache
+
+    Verify the services are running:
+
+    ```bash
+    docker-compose ps
+    ```
+  </Step>
+</Steps>
+
+## Create your first instance
+
+Now let's create a WhatsApp instance and connect it.
+
+<Steps>
+  <Step title="Create the instance">
+    Send a POST request to create a new instance:
+
+    <CodeGroup>
+    ```bash cURL
+    curl -X POST http://localhost:8080/instance/create \
+      -H "apikey: your-secure-api-key-here" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "instanceName": "my-instance",
+        "qrcode": true,
+        "integration": "WHATSAPP-BAILEYS"
+      }'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch('http://localhost:8080/instance/create', {
+      method: 'POST',
+      headers: {
+        'apikey': 'your-secure-api-key-here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        instanceName: 'my-instance',
+        qrcode: true,
+        integration: 'WHATSAPP-BAILEYS'
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+    ```
+
+    ```python Python
+    import requests
+
+    response = requests.post(
+        'http://localhost:8080/instance/create',
+        headers={
+            'apikey': 'your-secure-api-key-here',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'instanceName': 'my-instance',
+            'qrcode': True,
+            'integration': 'WHATSAPP-BAILEYS'
+        }
+    )
+
+    print(response.json())
+    ```
+    </CodeGroup>
+
+    **Response:**
+
+    ```json
+    {
+      "instance": {
+        "instanceName": "my-instance",
+        "instanceId": "550e8400-e29b-41d4-a716-446655440000",
+        "integration": "WHATSAPP-BAILEYS",
+        "status": "connecting"
+      },
+      "hash": "A1B2C3D4E5F6G7H8I9J0",
+      "qrcode": {
+        "code": "2@abc123...",
+        "base64": "data:image/png;base64,iVBORw0KG..."
+      }
+    }
+    ```
+
+    <Warning>
+      Store the `hash` value securely - you'll need it to authenticate requests for this specific instance.
+    </Warning>
+  </Step>
+
+  <Step title="Scan the QR code">
+    Open WhatsApp on your phone and scan the QR code:
+
+    1. Open WhatsApp on your phone
+    2. Go to **Settings** > **Linked Devices**
+    3. Tap **Link a Device**
+    4. Scan the QR code from the response (use the `base64` image)
+
+    <Tip>
+      You can also access the QR code through the Evolution Manager at `http://localhost:3000`
+    </Tip>
+
+    The instance will automatically connect once the QR code is scanned. You can verify the connection status:
+
+    ```bash
+    curl -X GET http://localhost:8080/instance/connectionState/my-instance \
+      -H "apikey: your-secure-api-key-here"
+    ```
+  </Step>
+
+  <Step title="Send your first message">
+    Once connected, send a text message:
+
+    <CodeGroup>
+    ```bash cURL
+    curl -X POST http://localhost:8080/message/sendText/my-instance \
+      -H "apikey: your-secure-api-key-here" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "number": "5511999999999",
+        "text": "Hello from Evolution API! 🚀"
+      }'
+    ```
+
+    ```javascript JavaScript
+    const response = await fetch('http://localhost:8080/message/sendText/my-instance', {
+      method: 'POST',
+      headers: {
+        'apikey': 'your-secure-api-key-here',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        number: '5511999999999',
+        text: 'Hello from Evolution API! 🚀'
+      })
+    });
+
+    const data = await response.json();
+    console.log(data);
+    ```
+
+    ```python Python
+    import requests
+
+    response = requests.post(
+        'http://localhost:8080/message/sendText/my-instance',
+        headers={
+            'apikey': 'your-secure-api-key-here',
+            'Content-Type': 'application/json'
+        },
+        json={
+            'number': '5511999999999',
+            'text': 'Hello from Evolution API! 🚀'
+        }
+    )
+
+    print(response.json())
+    ```
+    </CodeGroup>
+
+    **Response:**
+
+    ```json
+    {
+      "key": {
+        "remoteJid": "5511999999999@s.whatsapp.net",
+        "fromMe": true,
+        "id": "3EB0E8F8D7A2B9C4F5E1"
+      },
+      "message": {
+        "conversation": "Hello from Evolution API! 🚀"
+      },
+      "messageTimestamp": 1709568234
+    }
+    ```
+
+    <Tip>
+      The phone number must include the country code without the `+` symbol (e.g., `5511999999999` for Brazil).
+    </Tip>
+  </Step>
+</Steps>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
+Congratulations! You've successfully set up Evolution API and sent your first message. Here's what to explore next:
 
 <CardGroup cols={2}>
+  <Card title="Send media messages" icon="image" href="/api/messages/send-media">
+    Learn how to send images, videos, documents, and audio files
+  </Card>
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+  <Card title="Configure webhooks" icon="webhook" href="/events/webhooks">
+    Receive real-time events for incoming messages and status updates
+  </Card>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+  <Card title="Connect chatbots" icon="robot" href="/integrations/typebot">
+    Integrate with OpenAI, Dify, Typebot, and more
+  </Card>
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="API reference" icon="code" href="/api/overview">
+    Explore the complete API documentation
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Common issues
+
+<AccordionGroup>
+  <Accordion title="QR code not appearing">
+    If the QR code is not returned:
+
+    1. Check the instance status: `GET /instance/connectionState/{instanceName}`
+    2. Verify the instance is in `connecting` state
+    3. Try connecting manually: `GET /instance/connect/{instanceName}`
+    4. Check Docker logs: `docker-compose logs -f api`
+  </Accordion>
+
+  <Accordion title="Connection keeps disconnecting">
+    If your instance keeps disconnecting:
+
+    1. Ensure your phone has a stable internet connection
+    2. Keep WhatsApp open on your phone during initial connection
+    3. Check if you've reached the maximum number of linked devices (4)
+    4. Verify Redis is running: `docker-compose ps redis`
+  </Accordion>
+
+  <Accordion title="API returns 401 Unauthorized">
+    If you receive authentication errors:
+
+    1. Verify your API key matches the one in `.env`
+    2. Ensure the `apikey` header is included in all requests
+    3. For instance-specific requests, you can use the instance `hash` instead of the global API key
+  </Accordion>
+
+  <Accordion title="Database connection errors">
+    If you encounter database errors:
+
+    1. Verify PostgreSQL is running: `docker-compose ps evolution-postgres`
+    2. Check the database connection URI in `.env`
+    3. Ensure the database schema is deployed: `docker-compose exec api npm run db:deploy`
+    4. View database logs: `docker-compose logs evolution-postgres`
+  </Accordion>
+</AccordionGroup>
+
+## Need help?
+
+Join our community for support:
+
+- [WhatsApp Community](https://evolution-api.com/whatsapp) - Get help from the community
+- [Discord Server](https://evolution-api.com/discord) - Real-time chat with developers
+- [GitHub Issues](https://github.com/EvolutionAPI/evolution-api/issues) - Report bugs and request features
+- [Documentation](https://doc.evolution-api.com) - Complete guides and tutorials

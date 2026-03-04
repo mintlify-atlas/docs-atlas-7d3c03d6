@@ -1,0 +1,579 @@
+---
+title: Flowise Integration
+description: Connect Flowise LLM orchestration platform to WhatsApp through Evolution API for visual AI workflows
+---
+
+# Flowise Integration
+
+Flowise is an open-source low-code platform for building customized LLM orchestration flows and AI agents. You can integrate Flowise with Evolution API to deploy visual AI workflows on WhatsApp.
+
+## What is Flowise?
+
+Flowise provides:
+- Drag-and-drop LLM workflow builder
+- Support for multiple LLM providers (OpenAI, Anthropic, local models)
+- Vector store integrations for RAG
+- Agent capabilities with tools
+- Memory and conversation management
+- Custom chains and workflows
+- API endpoints for each flow
+
+## Enable Flowise Integration
+
+Add this environment variable to your `.env` file:
+
+```bash
+# Enable Flowise integration
+FLOWISE_ENABLED=true
+```
+
+## Configuration Settings
+
+### Create Default Settings
+
+Before creating Flowise bots, configure default behavior settings for your instance.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/flowise/settings/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "expire": 300,
+    "keywordFinish": "#EXIT",
+    "delayMessage": 1000,
+    "unknownMessage": "I did not understand your message.",
+    "listeningFromMe": false,
+    "stopBotFromMe": false,
+    "keepOpen": false,
+    "debounceTime": 10,
+    "ignoreJids": [],
+    "flowiseIdFallback": ""
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api.com/flowise/settings/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    expire: 300,
+    keywordFinish: '#EXIT',
+    delayMessage: 1000,
+    unknownMessage: 'I did not understand your message.',
+    listeningFromMe: false,
+    stopBotFromMe: false,
+    keepOpen: false,
+    debounceTime: 10,
+    ignoreJids: [],
+    flowiseIdFallback: ''
+  })
+});
+```
+</CodeGroup>
+
+#### Settings Parameters
+
+<ResponseField name="expire" type="number" required>
+  Session expiration time in seconds. Default: 300 (5 minutes)
+</ResponseField>
+
+<ResponseField name="keywordFinish" type="string" required>
+  Keyword to terminate the bot session. Example: "#EXIT", "bye"
+</ResponseField>
+
+<ResponseField name="delayMessage" type="number" required>
+  Delay in milliseconds between messages. Default: 1000
+</ResponseField>
+
+<ResponseField name="unknownMessage" type="string" required>
+  Message sent when bot encounters an error or cannot respond
+</ResponseField>
+
+<ResponseField name="listeningFromMe" type="boolean" required>
+  Whether bot responds to messages sent by the instance owner
+</ResponseField>
+
+<ResponseField name="stopBotFromMe" type="boolean" required>
+  Whether instance owner can stop the bot session
+</ResponseField>
+
+<ResponseField name="keepOpen" type="boolean" required>
+  Keep session open after completion. Default: false
+</ResponseField>
+
+<ResponseField name="debounceTime" type="number" required>
+  Seconds to wait before processing rapid messages. Default: 10
+</ResponseField>
+
+<ResponseField name="ignoreJids" type="array" required>
+  List of JIDs (phone numbers) to ignore
+</ResponseField>
+
+<ResponseField name="flowiseIdFallback" type="string">
+  Fallback Flowise bot ID to use when primary bot fails
+</ResponseField>
+
+## Create a Flowise Bot
+
+<Steps>
+  <Step title="Create Flowise Flow">
+    Design your AI workflow in Flowise using the visual builder. Deploy the flow and note the API endpoint.
+  </Step>
+  
+  <Step title="Get API credentials">
+    From Flowise, copy your chatflow API endpoint URL and API key (if authentication is enabled).
+  </Step>
+  
+  <Step title="Create bot in Evolution API">
+    Register the Flowise chatflow with Evolution API.
+  </Step>
+  
+  <Step title="Test the integration">
+    Send a message matching your trigger to start a Flowise conversation.
+  </Step>
+</Steps>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/flowise/create/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "description": "Customer Support Flow",
+    "apiUrl": "https://flowise.yourdomain.com/api/v1/prediction/chatflow-id-here",
+    "apiKey": "your-flowise-api-key",
+    "triggerType": "keyword",
+    "triggerOperator": "equals",
+    "triggerValue": "support",
+    "expire": 300,
+    "keywordFinish": "#EXIT",
+    "delayMessage": 1000,
+    "unknownMessage": "Sorry, I encountered an error.",
+    "listeningFromMe": false,
+    "stopBotFromMe": false,
+    "keepOpen": false,
+    "debounceTime": 10
+  }'
+```
+
+```javascript JavaScript
+const flowiseBot = await fetch('https://your-api.com/flowise/create/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    enabled: true,
+    description: 'Customer Support Flow',
+    apiUrl: 'https://flowise.yourdomain.com/api/v1/prediction/chatflow-id-here',
+    apiKey: 'your-flowise-api-key',
+    triggerType: 'keyword',
+    triggerOperator: 'equals',
+    triggerValue: 'support',
+    expire: 300,
+    keywordFinish: '#EXIT',
+    delayMessage: 1000,
+    unknownMessage: 'Sorry, I encountered an error.',
+    listeningFromMe: false,
+    stopBotFromMe: false,
+    keepOpen: false,
+    debounceTime: 10
+  })
+});
+```
+</CodeGroup>
+
+### Request Parameters
+
+<ResponseField name="enabled" type="boolean" required>
+  Enable or disable this bot
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  Description of the bot purpose
+</ResponseField>
+
+<ResponseField name="apiUrl" type="string" required>
+  Flowise chatflow prediction API endpoint (e.g., "https://flowise.yourdomain.com/api/v1/prediction/chatflow-id")
+</ResponseField>
+
+<ResponseField name="apiKey" type="string">
+  Flowise API key for authentication (optional, only if you enabled API key auth in Flowise)
+</ResponseField>
+
+<ResponseField name="triggerType" type="string" required>
+  Trigger type: "all", "keyword", or "advanced"
+</ResponseField>
+
+<ResponseField name="triggerOperator" type="string">
+  For keyword triggers: "equals", "contains", "startsWith", "endsWith", "regex"
+</ResponseField>
+
+<ResponseField name="triggerValue" type="string">
+  The keyword or regex pattern to trigger this bot
+</ResponseField>
+
+## Trigger Types
+
+### All Messages
+
+Respond to every message (only one "all" trigger allowed per instance):
+
+```json
+{
+  "triggerType": "all"
+}
+```
+
+### Keyword Trigger
+
+Trigger based on specific keywords:
+
+```json
+{
+  "triggerType": "keyword",
+  "triggerOperator": "contains",
+  "triggerValue": "help"
+}
+```
+
+**Available operators:**
+- `equals` - Exact match
+- `contains` - Contains the keyword
+- `startsWith` - Message starts with keyword
+- `endsWith` - Message ends with keyword
+- `regex` - Regular expression match
+
+### Advanced Trigger
+
+Use regex for complex pattern matching:
+
+```json
+{
+  "triggerType": "advanced",
+  "triggerValue": "^(how|what|when)\\s"
+}
+```
+
+## Update Flowise Bot
+
+Modify an existing Flowise bot configuration:
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://your-api.com/flowise/update/{instance}/{botId} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "description": "Updated Support Flow",
+    "triggerValue": "info"
+  }'
+```
+
+```javascript JavaScript
+await fetch('https://your-api.com/flowise/update/{instance}/{botId}', {
+  method: 'PUT',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    enabled: true,
+    description: 'Updated Support Flow',
+    triggerValue: 'info'
+  })
+});
+```
+</CodeGroup>
+
+## Delete Flowise Bot
+
+Remove a Flowise bot from your instance:
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://your-api.com/flowise/delete/{instance}/{botId} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+await fetch('https://your-api.com/flowise/delete/{instance}/{botId}', {
+  method: 'DELETE',
+  headers: {
+    'apikey': 'your-api-key'
+  }
+});
+```
+</CodeGroup>
+
+## Fetch Flowise Bots
+
+Retrieve all Flowise bots configured for your instance:
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-api.com/flowise/fetch/{instance} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+const bots = await fetch('https://your-api.com/flowise/fetch/{instance}', {
+  headers: {
+    'apikey': 'your-api-key'
+  }
+}).then(res => res.json());
+```
+</CodeGroup>
+
+## Session Management
+
+### Change Session Status
+
+Update the status of an active Flowise session:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/flowise/changeStatus/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "remoteJid": "5511999999999@s.whatsapp.net",
+    "status": "closed"
+  }'
+```
+
+```javascript JavaScript
+await fetch('https://your-api.com/flowise/changeStatus/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    remoteJid: '5511999999999@s.whatsapp.net',
+    status: 'closed'
+  })
+});
+```
+</CodeGroup>
+
+### Fetch Sessions
+
+Get all active Flowise sessions:
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-api.com/flowise/fetchSessions/{instance} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+const sessions = await fetch('https://your-api.com/flowise/fetchSessions/{instance}', {
+  headers: {
+    'apikey': 'your-api-key'
+  }
+}).then(res => res.json());
+```
+</CodeGroup>
+
+## Flowise Workflow Examples
+
+### RAG Chatflow
+
+Create a knowledge-base powered bot:
+1. Add Document Loader (PDF, text, web scraping)
+2. Connect to Text Splitter
+3. Add Vector Store (Pinecone, Weaviate, etc.)
+4. Connect to Conversational Retrieval Chain
+5. Add Chat Model (OpenAI, Anthropic, etc.)
+6. Deploy and copy API endpoint
+
+### Agent with Tools
+
+Build an autonomous agent:
+1. Add Agent node (OpenAI Functions, ReAct)
+2. Connect tools (Calculator, Search, Custom API)
+3. Add Memory for context retention
+4. Configure LLM model
+5. Deploy and copy API endpoint
+
+### Custom Chain
+
+Design complex workflows:
+1. Add LLM Chain node
+2. Add prompt templates
+3. Connect multiple chains
+4. Add conditional logic
+5. Deploy and copy API endpoint
+
+## Use Cases
+
+<Accordion title="Knowledge Base Assistant">
+  Deploy RAG-powered support:
+  - Answer questions from your documentation
+  - Provide accurate, sourced information
+  - Handle multi-turn conversations
+  - Update knowledge base without retraining
+</Accordion>
+
+<Accordion title="Multi-Step Workflows">
+  Build complex conversation flows:
+  - Data collection and validation
+  - Multi-stage processes
+  - Conditional branching
+  - Integration with multiple services
+</Accordion>
+
+<Accordion title="AI Agents with Tools">
+  Create autonomous assistants:
+  - Web search and information retrieval
+  - API integrations and data fetching
+  - Calculations and data processing
+  - Multi-step reasoning and planning
+</Accordion>
+
+<Accordion title="Hybrid LLM Solutions">
+  Combine multiple AI providers:
+  - Use different models for different tasks
+  - Fallback between providers
+  - Cost optimization strategies
+  - Local model integration
+</Accordion>
+
+## Best Practices
+
+<Note>
+  Test your Flowise chatflows thoroughly in the Flowise UI before deploying to WhatsApp.
+</Note>
+
+<Warning>
+  Secure your Flowise API endpoints with API keys, especially if they're publicly accessible.
+</Warning>
+
+- **Design modular flows**: Break complex workflows into reusable components
+- **Handle errors gracefully**: Add error handling nodes in your Flowise chains
+- **Optimize for WhatsApp**: Keep responses concise and conversational
+- **Use memory appropriately**: Configure conversation memory based on use case
+- **Monitor performance**: Track latency and success rates in Flowise analytics
+- **Version your flows**: Maintain different versions for testing and production
+
+## Troubleshooting
+
+<Accordion title="Bot not responding">
+  - Verify `FLOWISE_ENABLED=true` in environment
+  - Check that the bot is enabled (`enabled: true`)
+  - Ensure trigger conditions match the incoming message
+  - Verify Flowise API URL is correct and accessible
+  - Test the Flowise chatflow directly in Flowise UI
+  - Check Flowise logs for errors
+</Accordion>
+
+<Accordion title="Authentication errors">
+  - Verify API key is correct (if using authentication)
+  - Check that API key is properly configured in Flowise
+  - Ensure API key has necessary permissions
+  - Test API endpoint with curl or Postman
+</Accordion>
+
+<Accordion title="Slow response times">
+  - Optimize your Flowise chatflow (reduce unnecessary nodes)
+  - Check vector store query performance
+  - Monitor LLM provider response times
+  - Consider using faster models for time-sensitive use cases
+  - Check network latency between Evolution API and Flowise
+</Accordion>
+
+<Accordion title="Context not maintained">
+  - Verify conversation memory is enabled in Flowise chatflow
+  - Increase `expire` time if sessions are timing out
+  - Set `keepOpen: true` for longer conversations
+  - Check that session IDs are being passed correctly
+</Accordion>
+
+<Accordion title="Unexpected responses">
+  - Review chatflow logic in Flowise visual builder
+  - Check prompt templates for clarity
+  - Verify tool configurations and outputs
+  - Test with the same input in Flowise UI
+  - Review Flowise execution logs
+</Accordion>
+
+## Advanced Configuration
+
+### Multiple Chatflows
+
+You can deploy multiple Flowise chatflows with different triggers:
+
+```javascript
+// Technical support chatflow
+{
+  apiUrl: 'https://flowise.example.com/api/v1/prediction/tech-support-id',
+  triggerType: 'keyword',
+  triggerValue: 'technical'
+}
+
+// Sales inquiry chatflow
+{
+  apiUrl: 'https://flowise.example.com/api/v1/prediction/sales-id',
+  triggerType: 'keyword',
+  triggerValue: 'buy'
+}
+
+// General assistant (fallback)
+{
+  apiUrl: 'https://flowise.example.com/api/v1/prediction/general-id',
+  triggerType: 'all'
+}
+```
+
+### Self-Hosted Flowise
+
+For self-hosted Flowise installations:
+
+```json
+{
+  "apiUrl": "http://localhost:3000/api/v1/prediction/your-chatflow-id",
+  "apiKey": "your-api-key"
+}
+```
+
+Ensure your Flowise instance is accessible from the Evolution API server.
+
+## Flowise Features in WhatsApp
+
+### Conversation Memory
+
+Flowise automatically maintains conversation context:
+- Buffer memory for recent messages
+- Summary memory for long conversations
+- Entity memory for tracking information
+
+### Document Chat
+
+Chat with uploaded documents:
+- PDF parsing and indexing
+- Semantic search across documents
+- Citation and source tracking
+- Multi-document support
+
+### Agent Tools
+
+Integrate external tools:
+- Web search (SerpAPI, Brave Search)
+- Calculations and math
+- Custom API calls
+- Database queries
+
+## Related Integrations
+
+- [Dify](/integrations/dify) - Alternative LLM orchestration platform
+- [OpenAI](/integrations/openai) - Direct OpenAI integration
+- [N8N](/integrations/n8n) - Workflow automation platform
+- [EvoAI](/integrations/evoai) - Evolution AI platform

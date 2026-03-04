@@ -1,0 +1,431 @@
+---
+title: Send Contact Message
+description: Send contact information (vCard) to WhatsApp contacts via Evolution API
+---
+
+## Send Contact Message
+
+Send one or multiple contact cards (vCards) to WhatsApp contacts or groups. Recipients can save the contacts directly to their phone's address book.
+
+### Endpoint
+
+```
+POST /message/sendContact/:instanceName
+```
+
+### Path Parameters
+
+<ParamField path="instanceName" type="string" required>
+  The name of your WhatsApp instance that you created
+</ParamField>
+
+### Request Body
+
+<ParamField body="number" type="string" required>
+  The recipient's WhatsApp number in international format (without + symbol)
+  
+  Example: `5511999999999` for a Brazilian number
+</ParamField>
+
+<ParamField body="contact" type="array" required>
+  Array of contact objects to send. You can send multiple contacts in a single message.
+  
+  <expandable title="contact item properties">
+    <ParamField body="contact[].fullName" type="string" required>
+      The full name of the contact
+      
+      Example: `John Doe`
+    </ParamField>
+    
+    <ParamField body="contact[].wuid" type="string" optional>
+      The WhatsApp User ID (phone number) of the contact
+      
+      Must be at least 10 digits. Example: `5511888888888`
+    </ParamField>
+    
+    <ParamField body="contact[].phoneNumber" type="string" required>
+      The phone number of the contact (at least 10 digits)
+      
+      Example: `+55 11 98888-8888` or `5511988888888`
+    </ParamField>
+    
+    <ParamField body="contact[].organization" type="string" optional>
+      The organization or company name of the contact
+      
+      Example: `Acme Corporation`
+    </ParamField>
+    
+    <ParamField body="contact[].email" type="string" optional>
+      The email address of the contact
+      
+      Example: `john.doe@example.com`
+    </ParamField>
+    
+    <ParamField body="contact[].url" type="string" optional>
+      The website URL of the contact
+      
+      Example: `https://example.com`
+    </ParamField>
+  </expandable>
+</ParamField>
+
+<ParamField body="delay" type="integer" optional>
+  Delay before sending the message in milliseconds
+  
+  Example: `1000` for 1 second delay
+</ParamField>
+
+<ParamField body="quoted" type="object" optional>
+  Quote a previous message by providing its key and message object
+  
+  <expandable title="quoted properties">
+    <ParamField body="quoted.key" type="object" required>
+      <expandable title="key properties">
+        <ParamField body="quoted.key.id" type="string" required>
+          The message ID to quote
+        </ParamField>
+        <ParamField body="quoted.key.remoteJid" type="string" optional>
+          The JID of the chat where the message was sent
+        </ParamField>
+        <ParamField body="quoted.key.fromMe" type="boolean" optional>
+          Whether the quoted message was sent by you
+        </ParamField>
+      </expandable>
+    </ParamField>
+    <ParamField body="quoted.message" type="object" required>
+      The original message object being quoted
+    </ParamField>
+  </expandable>
+</ParamField>
+
+<ParamField body="mentionsEveryOne" type="boolean" optional>
+  Mention all participants in a group
+  
+  Default: `false`
+</ParamField>
+
+<ParamField body="mentioned" type="array" optional>
+  Array of phone numbers to mention. Each number should be a numeric string.
+  
+  Example: `["5511999999999", "5511888888888"]`
+</ParamField>
+
+### Response
+
+<ResponseField name="key" type="object">
+  Message key information
+  
+  <expandable title="key properties">
+    <ResponseField name="key.remoteJid" type="string">
+      The JID of the recipient
+    </ResponseField>
+    <ResponseField name="key.fromMe" type="boolean">
+      Always true for sent messages
+    </ResponseField>
+    <ResponseField name="key.id" type="string">
+      Unique message identifier
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  The sent message object containing the contact data
+</ResponseField>
+
+<ResponseField name="messageTimestamp" type="string">
+  Unix timestamp when the message was sent
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Message status (e.g., "PENDING", "SENT")
+</ResponseField>
+
+### Code Examples
+
+<CodeGroup>
+
+```bash cURL - Single Contact
+curl -X POST https://your-api-url.com/message/sendContact/my-instance \
+  -H "Content-Type: application/json" \
+  -H "apikey: YOUR_API_KEY" \
+  -d '{
+    "number": "5511999999999",
+    "contact": [
+      {
+        "fullName": "John Doe",
+        "wuid": "5511888888888",
+        "phoneNumber": "5511888888888",
+        "organization": "Acme Corporation",
+        "email": "john.doe@example.com",
+        "url": "https://johndoe.com"
+      }
+    ]
+  }'
+```
+
+```bash cURL - Multiple Contacts
+curl -X POST https://your-api-url.com/message/sendContact/my-instance \
+  -H "Content-Type: application/json" \
+  -H "apikey: YOUR_API_KEY" \
+  -d '{
+    "number": "5511999999999",
+    "contact": [
+      {
+        "fullName": "John Doe",
+        "phoneNumber": "5511888888888",
+        "email": "john@example.com"
+      },
+      {
+        "fullName": "Jane Smith",
+        "phoneNumber": "5511777777777",
+        "organization": "Tech Corp"
+      }
+    ]
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api-url.com/message/sendContact/my-instance', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': 'YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    number: '5511999999999',
+    contact: [
+      {
+        fullName: 'John Doe',
+        wuid: '5511888888888',
+        phoneNumber: '5511888888888',
+        organization: 'Acme Corporation',
+        email: 'john.doe@example.com',
+        url: 'https://johndoe.com'
+      }
+    ]
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python
+import requests
+
+url = 'https://your-api-url.com/message/sendContact/my-instance'
+headers = {
+    'Content-Type': 'application/json',
+    'apikey': 'YOUR_API_KEY'
+}
+payload = {
+    'number': '5511999999999',
+    'contact': [
+        {
+            'fullName': 'John Doe',
+            'wuid': '5511888888888',
+            'phoneNumber': '5511888888888',
+            'organization': 'Acme Corporation',
+            'email': 'john.doe@example.com',
+            'url': 'https://johndoe.com'
+        }
+    ]
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
+```php PHP
+<?php
+$curl = curl_init();
+
+curl_setopt_array($curl, [
+  CURLOPT_URL => 'https://your-api-url.com/message/sendContact/my-instance',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => json_encode([
+    'number' => '5511999999999',
+    'contact' => [
+      [
+        'fullName' => 'John Doe',
+        'wuid' => '5511888888888',
+        'phoneNumber' => '5511888888888',
+        'organization' => 'Acme Corporation',
+        'email' => 'john.doe@example.com',
+        'url' => 'https://johndoe.com'
+      ]
+    ]
+  ]),
+  CURLOPT_HTTPHEADER => [
+    'Content-Type: application/json',
+    'apikey: YOUR_API_KEY'
+  ],
+]);
+
+$response = curl_exec($curl);
+curl_close($curl);
+echo $response;
+?>
+```
+
+</CodeGroup>
+
+### Advanced Examples
+
+<Accordion title="Send single contact with all fields">
+```json
+{
+  "number": "5511999999999",
+  "contact": [
+    {
+      "fullName": "John Doe",
+      "wuid": "5511888888888",
+      "phoneNumber": "5511888888888",
+      "organization": "Acme Corporation",
+      "email": "john.doe@acme.com",
+      "url": "https://acme.com"
+    }
+  ]
+}
+```
+</Accordion>
+
+<Accordion title="Send multiple contacts at once">
+```json
+{
+  "number": "5511999999999",
+  "contact": [
+    {
+      "fullName": "Sales Team",
+      "phoneNumber": "5511888888888",
+      "organization": "Acme Corp",
+      "email": "sales@acme.com"
+    },
+    {
+      "fullName": "Support Team",
+      "phoneNumber": "5511777777777",
+      "organization": "Acme Corp",
+      "email": "support@acme.com"
+    },
+    {
+      "fullName": "CEO",
+      "phoneNumber": "5511666666666",
+      "organization": "Acme Corp",
+      "email": "ceo@acme.com"
+    }
+  ]
+}
+```
+</Accordion>
+
+<Accordion title="Send contact with minimal information">
+```json
+{
+  "number": "5511999999999",
+  "contact": [
+    {
+      "fullName": "Jane Smith",
+      "phoneNumber": "5511888888888"
+    }
+  ]
+}
+```
+</Accordion>
+
+<Accordion title="Send contact as reply to message">
+```json
+{
+  "number": "5511999999999",
+  "contact": [
+    {
+      "fullName": "Technical Support",
+      "phoneNumber": "5511888888888",
+      "organization": "Tech Solutions",
+      "email": "support@techsolutions.com"
+    }
+  ],
+  "quoted": {
+    "key": {
+      "id": "BAE5F2D3E4F5A6B7",
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false
+    },
+    "message": {
+      "conversation": "Can you send me the support contact?"
+    }
+  }
+}
+```
+</Accordion>
+
+## Contact Field Guidelines
+
+<Note>
+  When sending contact information, only `fullName` and `phoneNumber` are required. All other fields are optional but enhance the contact card.
+</Note>
+
+### Required Fields
+- **fullName**: Cannot be empty. This is the primary identifier for the contact.
+- **phoneNumber**: Must be at least 10 digits long.
+
+### Optional Fields
+- **wuid**: WhatsApp User ID - use this for WhatsApp-specific contacts
+- **organization**: Company or organization name
+- **email**: Email address (will be validated by WhatsApp client)
+- **url**: Website URL (should include http:// or https://)
+
+### Phone Number Format
+
+The `phoneNumber` field accepts various formats:
+- `5511999999999` (recommended - numbers only)
+- `+55 11 99999-9999` (with formatting)
+- `+5511999999999` (with + symbol)
+
+<Warning>
+  The `wuid` field should contain only numeric digits and must be at least 10 characters long. This represents the WhatsApp User ID and is typically the phone number in international format without the + symbol.
+</Warning>
+
+## How Contacts Appear in WhatsApp
+
+When you send a contact message:
+
+1. Recipients see a contact card with the name and phone number
+2. Optional fields (email, organization, URL) appear if provided
+3. Recipients can tap "Add to Contacts" to save directly to their phone
+4. Multiple contacts appear as separate cards in sequence
+5. Contact information is saved as a vCard (VCF) format
+
+## Use Cases
+
+- **Customer Support**: Send support team contact information
+- **Referrals**: Share business contacts with potential clients
+- **Event Networking**: Share contact details after meetings
+- **Team Coordination**: Distribute team member contacts
+- **Service Directories**: Send relevant service provider contacts
+
+## Error Responses
+
+<ResponseField name="status" type="number">
+  HTTP status code
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error description
+</ResponseField>
+
+### Common Errors
+
+| Status Code | Error Message | Solution |
+|-------------|---------------|----------|
+| 400 | Bad Request - Missing required fields | Ensure `fullName` and `phoneNumber` are provided for each contact |
+| 400 | "fullName" cannot be empty | Provide a non-empty full name |
+| 400 | Phone number too short | Ensure phone number is at least 10 digits |
+| 400 | "wuid" must be a numeric string | Remove non-numeric characters from wuid |
+| 401 | Unauthorized | Check your API key |
+| 404 | Not Found | Verify instance exists and is connected |
+| 500 | Internal Server Error | Check server logs or contact support |
+
+<Note>
+  You can send up to 5 contacts in a single message for the best user experience. While WhatsApp may support more, keeping it concise improves readability.
+</Note>

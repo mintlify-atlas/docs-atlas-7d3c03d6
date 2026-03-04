@@ -1,0 +1,480 @@
+---
+title: 'WhatsApp Business API'
+description: 'Integrate with official Meta WhatsApp Business API for enterprise messaging'
+---
+
+## Overview
+
+The WhatsApp Business API is Meta's official solution for enterprise-scale WhatsApp integration. Unlike Baileys, it requires official credentials and provides higher rate limits, better reliability, and advanced business features.
+
+<Note>
+You need a Meta Business Account and approved WhatsApp Business API access to use this provider.
+</Note>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Create Meta Business Account">
+    Sign up for a Meta Business Account at [business.facebook.com](https://business.facebook.com)
+  </Step>
+
+  <Step title="Request WhatsApp API Access">
+    Apply for WhatsApp Business API access through Meta Business Manager
+  </Step>
+
+  <Step title="Get API Credentials">
+    Obtain your:
+    - Phone Number ID
+    - WhatsApp Business Account ID  
+    - Access Token
+  </Step>
+
+  <Step title="Configure Webhook">
+    Set up webhook verification token in Meta's developer console
+  </Step>
+</Steps>
+
+## Configuration
+
+Configure Evolution API to use WhatsApp Business API:
+
+```bash .env
+# WhatsApp Business API Configuration
+WA_BUSINESS_TOKEN_WEBHOOK=evolution
+WA_BUSINESS_URL=https://graph.facebook.com
+WA_BUSINESS_VERSION=v20.0
+WA_BUSINESS_LANGUAGE=en_US
+```
+
+### Configuration Options
+
+| Variable | Description | Default |
+|----------|-------------|-------|
+| `WA_BUSINESS_TOKEN_WEBHOOK` | Webhook verification token | `evolution` |
+| `WA_BUSINESS_URL` | Meta Graph API base URL | `https://graph.facebook.com` |
+| `WA_BUSINESS_VERSION` | Graph API version | `v20.0` |
+| `WA_BUSINESS_LANGUAGE` | Default template language | `en_US` |
+
+<Warning>
+The webhook token must match the verification token you set in Meta's developer console.
+</Warning>
+
+## Creating an Instance
+
+Create a Business API instance with your credentials:
+
+```bash
+POST /instance/create
+```
+
+```json
+{
+  "instanceName": "business-instance",
+  "token": "your-whatsapp-access-token",
+  "number": "15550123456",
+  "businessId": "your-business-account-id"
+}
+```
+
+### Instance Properties
+
+- **token**: Your WhatsApp Business API access token
+- **number**: Phone Number ID (not the actual phone number)
+- **businessId**: WhatsApp Business Account ID
+
+## Connection Flow
+
+Unlike Baileys, the Business API doesn't require QR code authentication:
+
+<Steps>
+  <Step title="Instant Connection">
+    Business API instances connect immediately when created:
+
+    ```typescript
+    public stateConnection: wa.StateConnection = { state: 'open' };
+    ```
+
+    The connection state is always `'open'` since authentication is handled via API tokens.
+  </Step>
+
+  <Step title="Webhook Setup">
+    Configure webhook URL to receive messages:
+
+    ```bash
+    POST /webhook/set
+    ```
+
+    ```json
+    {
+      "instanceName": "business-instance",
+      "webhook": {
+        "url": "https://your-server.com/webhook",
+        "enabled": true,
+        "webhookByEvents": false
+      }
+    }
+    ```
+  </Step>
+
+  <Step title="Verify Webhook">
+    Meta sends verification requests to your webhook URL:
+
+    ```typescript
+    // Evolution API handles verification automatically
+    if (query['hub.verify_token'] === WA_BUSINESS_TOKEN_WEBHOOK) {
+      return query['hub.challenge'];
+    }
+    ```
+  </Step>
+</Steps>
+
+## Sending Messages
+
+The Business API supports all standard message types with the same Evolution API interface:
+
+<Tabs>
+  <Tab title="Text Message">
+    ```bash
+    POST /message/sendText/:instanceName
+    ```
+
+    ```json
+    {
+      "number": "5511999999999",
+      "text": "Hello from Business API!"
+    }
+    ```
+
+    Internally converts to Meta's format:
+
+    ```typescript
+    const content = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      type: 'text',
+      to: number.replace(/\D/g, ''),
+      text: {
+        body: message['conversation'],
+        preview_url: Boolean(options?.linkPreview)
+      }
+    };
+    ```
+  </Tab>
+
+  <Tab title="Media Message">
+    ```bash
+    POST /message/sendMedia/:instanceName
+    ```
+
+    ```json
+    {
+      "number": "5511999999999",
+      "mediatype": "image",
+      "media": "https://example.com/image.jpg",
+      "caption": "Check this out!"
+    }
+    ```
+
+    Media is uploaded to Meta's servers:
+
+    ```typescript
+    const id = await this.getIdMedia(prepareMedia);
+    
+    const content = {
+      messaging_product: 'whatsapp',
+      type: mediaType,
+      to: number,
+      [mediaType]: {
+        id: id,
+        caption: caption
+      }
+    };
+    ```
+  </Tab>
+
+  <Tab title="Template Message">
+    Use pre-approved message templates:
+
+    ```bash
+    POST /message/sendTemplate/:instanceName
+    ```
+
+    ```json
+    {
+      "number": "5511999999999",
+      "name": "welcome_message",
+      "language": "en_US",
+      "components": [
+        {
+          "type": "body",
+          "parameters": [
+            {
+              "type": "text",
+              "text": "John"
+            }
+          ]
+        }
+      ]
+    }
+    ```
+
+    <Tip>
+    Templates must be approved by Meta before use. Create and submit templates in Meta Business Manager.
+    </Tip>
+  </Tab>
+</Tabs>
+
+## Receiving Messages
+
+Meta sends webhook notifications to your configured endpoint:
+
+```json
+{
+  "object": "whatsapp_business_account",
+  "entry": [
+    {
+      "id": "BUSINESS_ACCOUNT_ID",
+      "changes": [
+        {
+          "value": {
+            "messaging_product": "whatsapp",
+            "metadata": {
+              "display_phone_number": "15550123456",
+              "phone_number_id": "PHONE_NUMBER_ID"
+            },
+            "messages": [
+              {
+                "from": "5511999999999",
+                "id": "wamid.XXX",
+                "timestamp": "1234567890",
+                "type": "text",
+                "text": {
+                  "body": "Hello!"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Evolution API normalizes this to standard message format:
+
+```typescript
+const messageRaw = {
+  key: {
+    id: message.id,
+    remoteJid: phoneNumber,
+    fromMe: message.from === metadata.phone_number_id
+  },
+  pushName: contacts[0].profile.name,
+  message: this.messageTextJson(received),
+  messageType: this.renderMessageType(message.type),
+  messageTimestamp: parseInt(message.timestamp),
+  instanceId: this.instanceId
+};
+```
+
+## Message Status Updates
+
+Track message delivery and read status:
+
+```json
+{
+  "statuses": [
+    {
+      "id": "wamid.XXX",
+      "status": "delivered",
+      "timestamp": "1234567890",
+      "recipient_id": "5511999999999"
+    }
+  ]
+}
+```
+
+### Status Types
+
+| Status | Description |
+|--------|-------------|
+| `sent` | Message sent to Meta servers |
+| `delivered` | Message delivered to recipient's phone |
+| `read` | Message read by recipient |
+| `failed` | Message delivery failed |
+
+Evolution API emits `messages.update` events:
+
+```typescript
+const message = {
+  messageId: findMessage.id,
+  keyId: key.id,
+  remoteJid: key.remoteJid,
+  fromMe: key.fromMe,
+  status: item.status.toUpperCase(),
+  instanceId: this.instanceId
+};
+
+this.sendDataWebhook(Events.MESSAGES_UPDATE, message);
+```
+
+## Business Profile
+
+Update your business profile information:
+
+```bash
+POST /business/profile/:instanceName
+```
+
+```json
+{
+  "about": "Your business description",
+  "address": "123 Main St, City, Country",
+  "description": "Detailed business description",
+  "email": "contact@business.com",
+  "vertical": "RETAIL",
+  "websites": ["https://business.com"]
+}
+```
+
+Implementation:
+
+```typescript
+public async setWhatsappBusinessProfile(data: NumberBusiness): Promise<any> {
+  const content = {
+    messaging_product: 'whatsapp',
+    about: data.about,
+    address: data.address,
+    description: data.description,
+    vertical: data.vertical,
+    email: data.email,
+    websites: data.websites,
+    profile_picture_handle: data.profilehandle
+  };
+  return await this.post(content, 'whatsapp_business_profile');
+}
+```
+
+## API Version Management
+
+Meta regularly updates the Graph API. Evolution API tracks the configured version:
+
+```typescript
+const urlServer = `${this.configService.get<WaBusiness>('WA_BUSINESS').URL}/${
+  this.configService.get<WaBusiness>('WA_BUSINESS').VERSION
+}/${this.number}/messages`;
+```
+
+<Warning>
+Update `WA_BUSINESS_VERSION` when Meta releases new API versions to access latest features.
+</Warning>
+
+### Version History
+
+- **v20.0**: Current recommended version
+- **v19.0**: Previous stable version  
+- **v18.0**: Legacy support
+
+Check [Meta's API Changelog](https://developers.facebook.com/docs/graph-api/changelog) for updates.
+
+## Rate Limits
+
+Business API has tiered rate limits based on your account:
+
+| Tier | Messages per Day | Unique Recipients |
+|------|------------------|------------------|
+| Tier 1 | 1,000 | 1,000 |
+| Tier 2 | 10,000 | 10,000 |
+| Tier 3 | 100,000 | 100,000 |
+| Tier 4 | Unlimited | Unlimited |
+
+<Tip>
+Your tier increases automatically based on message quality and volume. Start at Tier 1 and scale up.
+</Tip>
+
+## Differences from Baileys
+
+| Feature | Business API | Baileys |
+|---------|-------------|----------|
+| Authentication | API tokens | QR code |
+| Connection | Always connected | Can disconnect |
+| Session storage | Not required | Required |
+| Rate limits | High (tiered) | Web client limits |
+| Templates | Supported | Not supported |
+| Cost | Paid | Free |
+| Reliability | Enterprise-grade | Community-maintained |
+| Support | Official Meta | Community |
+| Features | Full business features | Basic messaging |
+
+## Pricing
+
+WhatsApp Business API uses conversation-based pricing:
+
+- **User-initiated**: Conversations started by customer (cheaper)
+- **Business-initiated**: Conversations started with templates (higher cost)
+- **Free tier**: 1,000 free conversations per month
+
+Pricing varies by country. See [Meta's pricing page](https://developers.facebook.com/docs/whatsapp/pricing) for details.
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Templates Wisely">
+    Pre-approve message templates for business-initiated conversations. Keep templates generic enough for reuse.
+  </Step>
+
+  <Step title="Monitor Quality">
+    Meta monitors message quality. Low ratings can result in rate limit reductions.
+  </Step>
+
+  <Step title="Handle Webhooks Efficiently">
+    Respond to webhook requests quickly (under 5 seconds) to avoid retries.
+  </Step>
+
+  <Step title="Implement Fallbacks">
+    Handle API errors gracefully and implement retry logic for failed messages.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Webhook Not Receiving Messages
+
+Verify webhook token matches Meta's configuration:
+
+```bash .env
+WA_BUSINESS_TOKEN_WEBHOOK=your-verification-token
+```
+
+### Authentication Errors
+
+Check your access token is valid and has correct permissions:
+
+```bash
+curl -X GET "https://graph.facebook.com/v20.0/me?access_token=YOUR_TOKEN"
+```
+
+### Template Rejection
+
+Ensure templates follow Meta's guidelines:
+- No promotional content in utility templates
+- Proper variable formatting
+- Compliant with messaging policies
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Template Messages" icon="file-lines" href="/api/messages/send-text">
+    Create and send template messages
+  </Card>
+  <Card title="Webhooks" icon="webhook" href="/events/webhooks">
+    Configure webhook events
+  </Card>
+  <Card title="Baileys Comparison" icon="code-compare" href="/whatsapp/baileys">
+    Compare with free Baileys provider
+  </Card>
+  <Card title="Connection Management" icon="link" href="/whatsapp/connections">
+    Manage Business API connections
+  </Card>
+</CardGroup>

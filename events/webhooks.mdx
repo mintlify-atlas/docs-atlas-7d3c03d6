@@ -1,0 +1,466 @@
+---
+title: Webhooks
+description: Configure HTTP webhooks to receive real-time WhatsApp events from Evolution API
+---
+
+Webhooks enable you to receive real-time HTTP POST notifications when events occur in your WhatsApp instances. Evolution API sends event data to your specified URL endpoint.
+
+## Configuration
+
+You can configure webhooks globally (for all instances) or per-instance. Configure webhooks through environment variables or the API.
+
+### Global Webhook Settings
+
+Set these environment variables to enable global webhooks:
+
+```bash .env
+# Enable global webhook for all instances
+WEBHOOK_GLOBAL_ENABLED=true
+
+# Your webhook endpoint URL
+WEBHOOK_GLOBAL_URL='https://your-domain.com/webhook'
+
+# Enable separate URLs per event type
+WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+```
+
+When `WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=true`, events are sent to:
+- `https://your-domain.com/webhook/qrcode-updated`
+- `https://your-domain.com/webhook/messages-upsert`
+- etc.
+
+### Request Configuration
+
+Configure webhook request behavior:
+
+```bash .env
+# Request timeout in milliseconds
+WEBHOOK_REQUEST_TIMEOUT_MS=60000
+```
+
+### Retry Configuration
+
+Evolution API implements intelligent retry logic with exponential backoff:
+
+```bash .env
+# Maximum retry attempts
+WEBHOOK_RETRY_MAX_ATTEMPTS=10
+
+# Initial delay between retries (seconds)
+WEBHOOK_RETRY_INITIAL_DELAY_SECONDS=5
+
+# Use exponential backoff
+WEBHOOK_RETRY_USE_EXPONENTIAL_BACKOFF=true
+
+# Maximum delay between retries (seconds)
+WEBHOOK_RETRY_MAX_DELAY_SECONDS=300
+
+# Jitter factor to randomize delays (0.0-1.0)
+WEBHOOK_RETRY_JITTER_FACTOR=0.2
+
+# HTTP status codes that won't trigger retries
+WEBHOOK_RETRY_NON_RETRYABLE_STATUS_CODES=400,401,403,404,422
+```
+
+<Note>
+The retry mechanism uses exponential backoff: each retry waits longer than the previous one. Jitter adds randomness to prevent thundering herd problems.
+</Note>
+
+## Available Events
+
+Configure which events trigger webhook notifications:
+
+<Tabs>
+  <Tab title="Instance Events">
+    ```bash .env
+    # Application and instance lifecycle
+    WEBHOOK_EVENTS_APPLICATION_STARTUP=false
+    WEBHOOK_EVENTS_QRCODE_UPDATED=true
+    WEBHOOK_EVENTS_CONNECTION_UPDATE=true
+    WEBHOOK_EVENTS_REMOVE_INSTANCE=false
+    WEBHOOK_EVENTS_LOGOUT_INSTANCE=false
+    ```
+  </Tab>
+  
+  <Tab title="Message Events">
+    ```bash .env
+    # Message events
+    WEBHOOK_EVENTS_MESSAGES_SET=true
+    WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+    WEBHOOK_EVENTS_MESSAGES_EDITED=true
+    WEBHOOK_EVENTS_MESSAGES_UPDATE=true
+    WEBHOOK_EVENTS_MESSAGES_DELETE=true
+    WEBHOOK_EVENTS_SEND_MESSAGE=true
+    WEBHOOK_EVENTS_SEND_MESSAGE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Contact Events">
+    ```bash .env
+    # Contact events
+    WEBHOOK_EVENTS_CONTACTS_SET=true
+    WEBHOOK_EVENTS_CONTACTS_UPSERT=true
+    WEBHOOK_EVENTS_CONTACTS_UPDATE=true
+    WEBHOOK_EVENTS_PRESENCE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Chat & Group Events">
+    ```bash .env
+    # Chat events
+    WEBHOOK_EVENTS_CHATS_SET=true
+    WEBHOOK_EVENTS_CHATS_UPSERT=true
+    WEBHOOK_EVENTS_CHATS_UPDATE=true
+    WEBHOOK_EVENTS_CHATS_DELETE=true
+    
+    # Group events
+    WEBHOOK_EVENTS_GROUPS_UPSERT=true
+    WEBHOOK_EVENTS_GROUPS_UPDATE=true
+    WEBHOOK_EVENTS_GROUP_PARTICIPANTS_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Other Events">
+    ```bash .env
+    # Label events
+    WEBHOOK_EVENTS_LABELS_EDIT=true
+    WEBHOOK_EVENTS_LABELS_ASSOCIATION=true
+    
+    # Call events
+    WEBHOOK_EVENTS_CALL=true
+    
+    # Typebot integration events
+    WEBHOOK_EVENTS_TYPEBOT_START=false
+    WEBHOOK_EVENTS_TYPEBOT_CHANGE_STATUS=false
+    
+    # Error events
+    WEBHOOK_EVENTS_ERRORS=false
+    WEBHOOK_EVENTS_ERRORS_WEBHOOK=
+    ```
+  </Tab>
+</Tabs>
+
+## Per-Instance Configuration
+
+Configure webhooks for a specific instance via API:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/webhook/set/instance_name \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webhook": {
+      "enabled": true,
+      "url": "https://your-domain.com/webhook",
+      "byEvents": false,
+      "base64": false,
+      "headers": {
+        "x-custom-header": "value"
+      },
+      "events": [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "QRCODE_UPDATED",
+        "CONNECTION_UPDATE"
+      ]
+    }
+  }'
+```
+
+```javascript JavaScript
+const axios = require('axios');
+
+const response = await axios.post(
+  'https://your-api.com/webhook/set/instance_name',
+  {
+    webhook: {
+      enabled: true,
+      url: 'https://your-domain.com/webhook',
+      byEvents: false,
+      base64: false,
+      headers: {
+        'x-custom-header': 'value'
+      },
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'QRCODE_UPDATED',
+        'CONNECTION_UPDATE'
+      ]
+    }
+  },
+  {
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    }
+  }
+);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-api.com/webhook/set/instance_name',
+    json={
+        'webhook': {
+            'enabled': True,
+            'url': 'https://your-domain.com/webhook',
+            'byEvents': False,
+            'base64': False,
+            'headers': {
+                'x-custom-header': 'value'
+            },
+            'events': [
+                'MESSAGES_UPSERT',
+                'MESSAGES_UPDATE',
+                'QRCODE_UPDATED',
+                'CONNECTION_UPDATE'
+            ]
+        }
+    },
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    }
+)
+```
+</CodeGroup>
+
+### Configuration Options
+
+<Accordion title="enabled">
+  Set to `true` to enable webhooks for this instance.
+</Accordion>
+
+<Accordion title="url">
+  Your webhook endpoint URL. Must start with `http://` or `https://`.
+</Accordion>
+
+<Accordion title="byEvents">
+  When `true`, appends the event name to the URL:
+  - `false`: All events go to `https://your-domain.com/webhook`
+  - `true`: Events go to `https://your-domain.com/webhook/event-name`
+</Accordion>
+
+<Accordion title="base64">
+  When `true`, media files are sent as base64-encoded strings in the payload.
+</Accordion>
+
+<Accordion title="headers">
+  Custom HTTP headers to include in webhook requests. Useful for authentication.
+</Accordion>
+
+<Accordion title="events">
+  Array of event names to receive. Leave empty or omit to receive all events.
+</Accordion>
+
+## Authentication
+
+### JWT Authentication
+
+You can use JWT tokens for webhook authentication. Add a `jwt_key` header:
+
+```json
+{
+  "webhook": {
+    "enabled": true,
+    "url": "https://your-domain.com/webhook",
+    "headers": {
+      "jwt_key": "your-secret-key"
+    }
+  }
+}
+```
+
+Evolution API will:
+1. Generate a JWT token signed with your secret key
+2. Add it as `Authorization: Bearer <token>` header
+3. Token expires after 10 minutes
+
+### Validating JWT Tokens
+
+<CodeGroup>
+```javascript Node.js
+const jwt = require('jsonwebtoken');
+
+function validateWebhook(req) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  try {
+    const decoded = jwt.verify(token, 'your-secret-key');
+    
+    // Check token claims
+    if (decoded.app !== 'evolution' || decoded.action !== 'webhook') {
+      throw new Error('Invalid token claims');
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('JWT validation failed:', error.message);
+    return false;
+  }
+}
+```
+
+```python Python
+import jwt
+from datetime import datetime
+
+def validate_webhook(request):
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    
+    try:
+        decoded = jwt.decode(
+            token,
+            'your-secret-key',
+            algorithms=['HS256']
+        )
+        
+        # Check token claims
+        if decoded.get('app') != 'evolution' or decoded.get('action') != 'webhook':
+            raise ValueError('Invalid token claims')
+        
+        return True
+    except Exception as e:
+        print(f'JWT validation failed: {e}')
+        return False
+```
+</CodeGroup>
+
+## Webhook Payload Structure
+
+All webhook requests include the following structure:
+
+```json
+{
+  "event": "messages.upsert",
+  "instance": "instance_name",
+  "data": {
+    // Event-specific data
+  },
+  "destination": "https://your-domain.com/webhook",
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "sender": "5511999999999",
+  "server_url": "https://your-evolution-api.com",
+  "apikey": "instance_api_key"
+}
+```
+
+### Example Payloads
+
+<Accordion title="MESSAGES_UPSERT - New Message">
+```json
+{
+  "event": "messages.upsert",
+  "instance": "my_instance",
+  "data": {
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0XXXXX"
+    },
+    "message": {
+      "conversation": "Hello from WhatsApp!"
+    },
+    "messageTimestamp": 1709550600,
+    "pushName": "John Doe"
+  },
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "sender": "5511999999999",
+  "server_url": "https://your-evolution-api.com",
+  "apikey": "your_api_key"
+}
+```
+</Accordion>
+
+<Accordion title="QRCODE_UPDATED - QR Code">
+```json
+{
+  "event": "qrcode.updated",
+  "instance": "my_instance",
+  "data": {
+    "qrcode": {
+      "code": "2@ABC123...",
+      "base64": "data:image/png;base64,iVBORw0KGgo..."
+    }
+  },
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "server_url": "https://your-evolution-api.com",
+  "apikey": "your_api_key"
+}
+```
+</Accordion>
+
+<Accordion title="CONNECTION_UPDATE - Connection Status">
+```json
+{
+  "event": "connection.update",
+  "instance": "my_instance",
+  "data": {
+    "state": "open",
+    "statusReason": 200
+  },
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "server_url": "https://your-evolution-api.com",
+  "apikey": "your_api_key"
+}
+```
+</Accordion>
+
+## Best Practices
+
+<Steps>
+  <Step title="Respond Quickly">
+    Your webhook endpoint should respond with HTTP 200-299 within the timeout period. Process data asynchronously if needed.
+  </Step>
+  
+  <Step title="Handle Retries Gracefully">
+    Implement idempotency in your webhook handler. Use the message ID or event timestamp to avoid processing duplicates.
+  </Step>
+  
+  <Step title="Secure Your Endpoint">
+    - Use HTTPS for your webhook URL
+    - Validate JWT tokens or custom headers
+    - Whitelist Evolution API's IP addresses if possible
+  </Step>
+  
+  <Step title="Monitor Failures">
+    Enable error event webhooks to receive notifications about webhook delivery failures:
+    ```bash
+    WEBHOOK_EVENTS_ERRORS=true
+    WEBHOOK_EVENTS_ERRORS_WEBHOOK=https://your-domain.com/webhook-errors
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Webhook URLs must be accessible from the internet. Local URLs (localhost, 192.168.x.x) won't work unless you're using a tunneling service like ngrok.
+</Warning>
+
+## Troubleshooting
+
+<Accordion title="Webhooks not being received">
+  1. Check that `WEBHOOK_GLOBAL_ENABLED=true` or instance webhook is enabled
+  2. Verify your URL is accessible from the internet
+  3. Check the specific event is enabled in configuration
+  4. Review Evolution API logs for delivery errors
+  5. Ensure your endpoint responds with HTTP 200-299
+</Accordion>
+
+<Accordion title="Duplicate events">
+  This is normal behavior when retries occur. Implement idempotency using message IDs or timestamps to handle duplicates.
+</Accordion>
+
+<Accordion title="Events arriving out of order">
+  Network delays can cause events to arrive out of order. Use the `date_time` and `messageTimestamp` fields to order events correctly.
+</Accordion>
+
+<Accordion title="Large payload errors">
+  If you're receiving media files, consider:
+  - Setting `base64: false` to receive media URLs instead of base64 data
+  - Increasing `WEBHOOK_REQUEST_TIMEOUT_MS` for large payloads
+  - Downloading media asynchronously from URLs
+</Accordion>

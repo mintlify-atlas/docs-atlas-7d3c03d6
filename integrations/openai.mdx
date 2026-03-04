@@ -1,0 +1,662 @@
+---
+title: OpenAI Integration
+description: Connect OpenAI's GPT models to WhatsApp through Evolution API for AI-powered conversations
+---
+
+# OpenAI Integration
+
+OpenAI provides powerful language models including GPT-4, GPT-3.5, and assistants with advanced capabilities. You can integrate OpenAI with Evolution API to deploy AI-powered conversational experiences on WhatsApp.
+
+## What is OpenAI?
+
+OpenAI offers:
+- GPT-4 and GPT-3.5-turbo models for chat completions
+- Assistants API with code interpreter and retrieval
+- Function calling capabilities
+- Vision and image understanding
+- Text-to-speech and speech-to-text
+- Fine-tuning for custom models
+
+## Enable OpenAI Integration
+
+Add this environment variable to your `.env` file:
+
+```bash
+# Enable OpenAI integration
+OPENAI_ENABLED=true
+```
+
+## OpenAI Credentials Management
+
+Before creating bots, you need to register your OpenAI API credentials.
+
+### Create OpenAI Credentials
+
+<Steps>
+  <Step title="Get OpenAI API Key">
+    Visit [OpenAI Platform](https://platform.openai.com/api-keys) and create an API key.
+  </Step>
+  
+  <Step title="Register credentials in Evolution API">
+    Store your API key securely in Evolution API.
+  </Step>
+  
+  <Step title="Use credentials when creating bots">
+    Reference the credential ID when configuring OpenAI bots.
+  </Step>
+</Steps>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/openai/creds/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Production OpenAI",
+    "apiKey": "sk-your-openai-api-key"
+  }'
+```
+
+```javascript JavaScript
+const creds = await fetch('https://your-api.com/openai/creds/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Production OpenAI',
+    apiKey: 'sk-your-openai-api-key'
+  })
+}).then(res => res.json());
+
+console.log('Credential ID:', creds.id);
+```
+</CodeGroup>
+
+<ResponseField name="name" type="string" required>
+  Friendly name to identify this credential set
+</ResponseField>
+
+<ResponseField name="apiKey" type="string" required>
+  Your OpenAI API key (starts with "sk-")
+</ResponseField>
+
+### Fetch OpenAI Credentials
+
+Retrieve all registered OpenAI credentials:
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-api.com/openai/creds/{instance} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+const allCreds = await fetch('https://your-api.com/openai/creds/{instance}', {
+  headers: {
+    'apikey': 'your-api-key'
+  }
+}).then(res => res.json());
+```
+</CodeGroup>
+
+### Delete OpenAI Credentials
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://your-api.com/openai/creds/{instance}/{credsId} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+await fetch('https://your-api.com/openai/creds/{instance}/{credsId}', {
+  method: 'DELETE',
+  headers: {
+    'apikey': 'your-api-key'
+  }
+});
+```
+</CodeGroup>
+
+## Configuration Settings
+
+### Create Default Settings
+
+Configure default behavior settings for your instance.
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/openai/settings/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "openaiCredsId": "creds-id-from-previous-step",
+    "expire": 300,
+    "keywordFinish": "#EXIT",
+    "delayMessage": 1000,
+    "unknownMessage": "I did not understand your message.",
+    "listeningFromMe": false,
+    "stopBotFromMe": false,
+    "keepOpen": false,
+    "debounceTime": 10,
+    "ignoreJids": [],
+    "openaiIdFallback": "",
+    "speechToText": false
+  }'
+```
+
+```javascript JavaScript
+const settings = await fetch('https://your-api.com/openai/settings/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    openaiCredsId: 'creds-id-from-previous-step',
+    expire: 300,
+    keywordFinish: '#EXIT',
+    delayMessage: 1000,
+    unknownMessage: 'I did not understand your message.',
+    listeningFromMe: false,
+    stopBotFromMe: false,
+    keepOpen: false,
+    debounceTime: 10,
+    ignoreJids: [],
+    openaiIdFallback: '',
+    speechToText: false
+  })
+});
+```
+</CodeGroup>
+
+<ResponseField name="openaiCredsId" type="string" required>
+  ID of the OpenAI credentials to use by default
+</ResponseField>
+
+<ResponseField name="speechToText" type="boolean">
+  Enable automatic speech-to-text for voice messages. Default: false
+</ResponseField>
+
+<ResponseField name="openaiIdFallback" type="string">
+  Fallback OpenAI bot ID to use when primary bot fails
+</ResponseField>
+
+## OpenAI Bot Types
+
+Evolution API supports two OpenAI bot types:
+
+### Chat Completion
+
+Use GPT models directly with custom prompts:
+- GPT-4, GPT-4-turbo
+- GPT-3.5-turbo
+- Custom system messages
+- Conversation history
+- Function calling
+
+### Assistant
+
+Use OpenAI Assistants API:
+- Pre-configured assistants
+- Code interpreter
+- Knowledge retrieval
+- File support
+- Advanced tools
+
+## Create Chat Completion Bot
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/openai/create/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "description": "Customer Support AI",
+    "openaiCredsId": "your-creds-id",
+    "botType": "chatCompletion",
+    "model": "gpt-4-turbo-preview",
+    "maxTokens": 1000,
+    "systemMessages": [
+      "You are a helpful customer support assistant.",
+      "Always be polite and professional.",
+      "Keep responses concise for WhatsApp."
+    ],
+    "assistantMessages": [
+      "Hello! How can I help you today?"
+    ],
+    "userMessages": [
+      "I need help with my order."
+    ],
+    "triggerType": "keyword",
+    "triggerOperator": "equals",
+    "triggerValue": "support",
+    "expire": 300,
+    "keywordFinish": "#EXIT",
+    "delayMessage": 1000,
+    "unknownMessage": "Sorry, I encountered an error.",
+    "listeningFromMe": false,
+    "stopBotFromMe": false,
+    "keepOpen": false,
+    "debounceTime": 10
+  }'
+```
+
+```javascript JavaScript
+const bot = await fetch('https://your-api.com/openai/create/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    enabled: true,
+    description: 'Customer Support AI',
+    openaiCredsId: 'your-creds-id',
+    botType: 'chatCompletion',
+    model: 'gpt-4-turbo-preview',
+    maxTokens: 1000,
+    systemMessages: [
+      'You are a helpful customer support assistant.',
+      'Always be polite and professional.',
+      'Keep responses concise for WhatsApp.'
+    ],
+    assistantMessages: [
+      'Hello! How can I help you today?'
+    ],
+    userMessages: [
+      'I need help with my order.'
+    ],
+    triggerType: 'keyword',
+    triggerOperator: 'equals',
+    triggerValue: 'support',
+    expire: 300,
+    keywordFinish: '#EXIT',
+    delayMessage: 1000,
+    unknownMessage: 'Sorry, I encountered an error.',
+    listeningFromMe: false,
+    stopBotFromMe: false,
+    keepOpen: false,
+    debounceTime: 10
+  })
+});
+```
+</CodeGroup>
+
+### Chat Completion Parameters
+
+<ResponseField name="botType" type="string" required>
+  Must be "chatCompletion" for this bot type
+</ResponseField>
+
+<ResponseField name="openaiCredsId" type="string" required>
+  ID of the OpenAI credentials to use
+</ResponseField>
+
+<ResponseField name="model" type="string" required>
+  OpenAI model: "gpt-4", "gpt-4-turbo-preview", "gpt-3.5-turbo", etc.
+</ResponseField>
+
+<ResponseField name="maxTokens" type="number" required>
+  Maximum tokens for the response (controls response length and cost)
+</ResponseField>
+
+<ResponseField name="systemMessages" type="array">
+  System prompts that define the AI's behavior and personality
+</ResponseField>
+
+<ResponseField name="assistantMessages" type="array">
+  Example assistant responses for few-shot learning
+</ResponseField>
+
+<ResponseField name="userMessages" type="array">
+  Example user messages paired with assistant messages
+</ResponseField>
+
+<ResponseField name="functionUrl" type="string">
+  Webhook URL for function calling responses
+</ResponseField>
+
+## Create Assistant Bot
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/openai/create/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "description": "Sales Assistant",
+    "openaiCredsId": "your-creds-id",
+    "botType": "assistant",
+    "assistantId": "asst_your-assistant-id",
+    "triggerType": "keyword",
+    "triggerOperator": "startsWith",
+    "triggerValue": "sales",
+    "expire": 600,
+    "keywordFinish": "bye",
+    "delayMessage": 1500,
+    "unknownMessage": "Sorry, something went wrong.",
+    "listeningFromMe": false,
+    "stopBotFromMe": true,
+    "keepOpen": true,
+    "debounceTime": 5
+  }'
+```
+
+```javascript JavaScript
+const assistantBot = await fetch('https://your-api.com/openai/create/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    enabled: true,
+    description: 'Sales Assistant',
+    openaiCredsId: 'your-creds-id',
+    botType: 'assistant',
+    assistantId: 'asst_your-assistant-id',
+    triggerType: 'keyword',
+    triggerOperator: 'startsWith',
+    triggerValue: 'sales',
+    expire: 600,
+    keywordFinish: 'bye',
+    delayMessage: 1500,
+    unknownMessage: 'Sorry, something went wrong.',
+    listeningFromMe: false,
+    stopBotFromMe: true,
+    keepOpen: true,
+    debounceTime: 5
+  })
+});
+```
+</CodeGroup>
+
+### Assistant Parameters
+
+<ResponseField name="botType" type="string" required>
+  Must be "assistant" for this bot type
+</ResponseField>
+
+<ResponseField name="assistantId" type="string" required>
+  OpenAI Assistant ID (starts with "asst_"). Create assistants in OpenAI Platform.
+</ResponseField>
+
+## Available Models
+
+Retrieve all available OpenAI models for your credentials:
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-api.com/openai/models/{instance}?openaiCredsId={credsId} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+const models = await fetch(
+  'https://your-api.com/openai/models/{instance}?openaiCredsId={credsId}',
+  {
+    headers: {
+      'apikey': 'your-api-key'
+    }
+  }
+).then(res => res.json());
+```
+</CodeGroup>
+
+## Trigger Types
+
+### All Messages
+
+Respond to every message:
+
+```json
+{
+  "triggerType": "all"
+}
+```
+
+### Keyword Trigger
+
+Trigger based on specific keywords:
+
+```json
+{
+  "triggerType": "keyword",
+  "triggerOperator": "contains",
+  "triggerValue": "help"
+}
+```
+
+**Operators:** equals, contains, startsWith, endsWith, regex
+
+### Advanced Trigger
+
+Use regex patterns:
+
+```json
+{
+  "triggerType": "advanced",
+  "triggerValue": "^(question|ask|inquire)\\s"
+}
+```
+
+## Update OpenAI Bot
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://your-api.com/openai/update/{instance}/{botId} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "description": "Updated Support Bot",
+    "maxTokens": 1500
+  }'
+```
+
+```javascript JavaScript
+await fetch('https://your-api.com/openai/update/{instance}/{botId}', {
+  method: 'PUT',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    enabled: true,
+    description: 'Updated Support Bot',
+    maxTokens: 1500
+  })
+});
+```
+</CodeGroup>
+
+## Delete OpenAI Bot
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://your-api.com/openai/delete/{instance}/{botId} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+await fetch('https://your-api.com/openai/delete/{instance}/{botId}', {
+  method: 'DELETE',
+  headers: {
+    'apikey': 'your-api-key'
+  }
+});
+```
+</CodeGroup>
+
+## Fetch OpenAI Bots
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-api.com/openai/fetch/{instance} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+const bots = await fetch('https://your-api.com/openai/fetch/{instance}', {
+  headers: {
+    'apikey': 'your-api-key'
+  }
+}).then(res => res.json());
+```
+</CodeGroup>
+
+## Session Management
+
+### Change Session Status
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/openai/changeStatus/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "remoteJid": "5511999999999@s.whatsapp.net",
+    "status": "closed"
+  }'
+```
+
+```javascript JavaScript
+await fetch('https://your-api.com/openai/changeStatus/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    remoteJid: '5511999999999@s.whatsapp.net',
+    status: 'closed'
+  })
+});
+```
+</CodeGroup>
+
+### Fetch Sessions
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-api.com/openai/fetchSessions/{instance} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+const sessions = await fetch('https://your-api.com/openai/fetchSessions/{instance}', {
+  headers: {
+    'apikey': 'your-api-key'
+  }
+}).then(res => res.json());
+```
+</CodeGroup>
+
+## Speech to Text
+
+Enable automatic transcription of voice messages:
+
+```json
+{
+  "speechToText": true
+}
+```
+
+When enabled, voice messages sent to the bot are automatically:
+1. Transcribed using OpenAI Whisper
+2. Processed as text by the bot
+3. Responded to normally
+
+## Use Cases
+
+<Accordion title="24/7 Customer Support">
+  Deploy AI support agents:
+  - Answer common questions instantly
+  - Provide product information
+  - Troubleshoot issues step-by-step
+  - Escalate to humans when needed
+</Accordion>
+
+<Accordion title="Sales and Lead Qualification">
+  Automate sales conversations:
+  - Qualify leads with intelligent questions
+  - Provide product recommendations
+  - Schedule demos and calls
+  - Capture contact information
+</Accordion>
+
+<Accordion title="Content Creation Assistant">
+  Help users create content:
+  - Generate social media posts
+  - Write email responses
+  - Create marketing copy
+  - Brainstorm ideas
+</Accordion>
+
+<Accordion title="Personal Assistant">
+  Daily helper bot:
+  - Answer general questions
+  - Provide recommendations
+  - Set reminders and tasks
+  - Get quick information
+</Accordion>
+
+## Best Practices
+
+<Note>
+  Use GPT-3.5-turbo for cost-effective, fast responses. Reserve GPT-4 for complex reasoning tasks.
+</Note>
+
+<Warning>
+  Monitor your OpenAI API usage carefully. Set reasonable `maxTokens` limits to control costs.
+</Warning>
+
+- **Craft clear system messages**: Define personality, tone, and constraints
+- **Keep responses concise**: WhatsApp users prefer short messages
+- **Use few-shot examples**: Provide example conversations to guide behavior
+- **Set appropriate token limits**: Balance quality with cost
+- **Handle voice messages**: Enable speech-to-text for better UX
+- **Monitor conversations**: Review bot interactions regularly
+- **Implement safety**: Use OpenAI's moderation API for sensitive use cases
+
+## Troubleshooting
+
+<Accordion title="Bot not responding">
+  - Verify `OPENAI_ENABLED=true` in environment
+  - Check bot is enabled and credentials are valid
+  - Ensure OpenAI API key has sufficient credits
+  - Verify trigger conditions match messages
+  - Check OpenAI API status
+</Accordion>
+
+<Accordion title="Slow responses">
+  - Use GPT-3.5-turbo instead of GPT-4 for faster responses
+  - Reduce `maxTokens` for quicker completions
+  - Check your internet connection to OpenAI
+  - Monitor OpenAI API latency
+</Accordion>
+
+<Accordion title="High costs">
+  - Reduce `maxTokens` to limit response length
+  - Use GPT-3.5-turbo instead of GPT-4
+  - Implement stricter triggers to reduce activations
+  - Set shorter session expiration times
+  - Monitor usage in OpenAI dashboard
+</Accordion>
+
+<Accordion title="Context not maintained">
+  - Increase `expire` time for longer sessions
+  - Set `keepOpen: true` for persistent conversations
+  - Verify conversation history is being sent
+  - Check maxTokens isn't too low for context
+</Accordion>
+
+## Related Integrations
+
+- [Dify](/integrations/dify) - LLM orchestration platform
+- [Flowise](/integrations/flowise) - Visual LLM workflow builder
+- [EvoAI](/integrations/evoai) - Evolution AI platform

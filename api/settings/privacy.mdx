@@ -1,0 +1,295 @@
+---
+title: 'Privacy Settings'
+api: 'POST /chat/updatePrivacySettings/:instanceName'
+description: 'Configure WhatsApp privacy settings for your instance.'
+---
+
+## Overview
+
+You can control who can see your profile information, online status, last seen, and who can add you to groups. These settings mirror the privacy options available in WhatsApp's settings.
+
+<Warning>
+  Privacy settings affect how your WhatsApp account appears to others. Changes to these settings apply to all contacts unless you have specific contact-level exceptions set in WhatsApp.
+</Warning>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+<ParamField body="readreceipts" type="string" required>
+  Read receipt visibility. Options:
+  - `all`: Send read receipts to everyone
+  - `none`: Don't send read receipts (note: you also won't see others' read receipts)
+</ParamField>
+
+<ParamField body="profile" type="string" required>
+  Who can see your profile photo. Options:
+  - `all`: Everyone
+  - `contacts`: Only your contacts
+  - `contact_blacklist`: All except specific contacts
+  - `none`: Nobody
+</ParamField>
+
+<ParamField body="status" type="string" required>
+  Who can see your status updates. Options:
+  - `all`: Everyone
+  - `contacts`: Only your contacts
+  - `contact_blacklist`: All except specific contacts
+  - `none`: Nobody
+</ParamField>
+
+<ParamField body="online" type="string" required>
+  Who can see when you're online. Options:
+  - `all`: Everyone
+  - `match_last_seen`: Same as your "Last Seen" setting
+</ParamField>
+
+<ParamField body="last" type="string" required>
+  Who can see your last seen timestamp. Options:
+  - `all`: Everyone
+  - `contacts`: Only your contacts
+  - `contact_blacklist`: All except specific contacts
+  - `none`: Nobody
+</ParamField>
+
+<ParamField body="groupadd" type="string" required>
+  Who can add you to groups. Options:
+  - `all`: Everyone can add you
+  - `contacts`: Only your contacts can add you
+  - `contact_blacklist`: All except specific contacts can add you
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Whether the privacy settings were updated successfully.
+</ResponseField>
+
+<ResponseField name="settings" type="object">
+  The updated privacy settings.
+  
+  <Expandable title="properties">
+    <ResponseField name="readreceipts" type="string">
+      Read receipts setting.
+    </ResponseField>
+    
+    <ResponseField name="profile" type="string">
+      Profile photo visibility.
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Status updates visibility.
+    </ResponseField>
+    
+    <ResponseField name="online" type="string">
+      Online presence visibility.
+    </ResponseField>
+    
+    <ResponseField name="last" type="string">
+      Last seen visibility.
+    </ResponseField>
+    
+    <ResponseField name="groupadd" type="string">
+      Group add permission.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL (Maximum Privacy)
+curl --request POST \
+  --url https://api.example.com/chat/updatePrivacySettings/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "readreceipts": "none",
+    "profile": "contacts",
+    "status": "contacts",
+    "online": "match_last_seen",
+    "last": "contacts",
+    "groupadd": "contacts"
+  }'
+```
+
+```bash cURL (Open Privacy)
+curl --request POST \
+  --url https://api.example.com/chat/updatePrivacySettings/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "readreceipts": "all",
+    "profile": "all",
+    "status": "all",
+    "online": "all",
+    "last": "all",
+    "groupadd": "all"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.example.com/chat/updatePrivacySettings/my-instance',
+  {
+    method: 'POST',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      readreceipts: 'all',
+      profile: 'contacts',
+      status: 'contacts',
+      online: 'match_last_seen',
+      last: 'contacts',
+      groupadd: 'contacts'
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/chat/updatePrivacySettings/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'readreceipts': 'all',
+        'profile': 'contacts',
+        'status': 'contacts',
+        'online': 'match_last_seen',
+        'last': 'contacts',
+        'groupadd': 'contacts'
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Success
+{
+  "success": true,
+  "settings": {
+    "readreceipts": "all",
+    "profile": "contacts",
+    "status": "contacts",
+    "online": "match_last_seen",
+    "last": "contacts",
+    "groupadd": "contacts"
+  }
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid privacy setting",
+  "message": "Invalid value for 'profile'. Must be one of: all, contacts, contact_blacklist, none"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized",
+  "message": "Invalid API key"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Instance not found",
+  "message": "The instance 'my-instance' does not exist"
+}
+```
+
+</ResponseExample>
+
+## Privacy Setting Explanations
+
+### Read Receipts
+
+<Note>
+  If you disable read receipts (`none`), you also won't be able to see when others read your messages. This is a WhatsApp limitation.
+</Note>
+
+### Profile Photo, Status, and Last Seen
+
+These settings control visibility for different aspects of your profile:
+
+- **all**: Everyone can see
+- **contacts**: Only people in your contacts
+- **contact_blacklist**: Everyone except specific blocked contacts
+- **none**: Nobody can see
+
+### Online Status
+
+<Info>
+  The `match_last_seen` option for online status means it follows the same privacy setting as your "Last Seen" timestamp.
+</Info>
+
+### Group Add Permission
+
+Control who can add you to groups without your permission:
+
+- **all**: Anyone can add you
+- **contacts**: Only your contacts can add you
+- **contact_blacklist**: Anyone except blocked contacts can add you
+
+<Tip>
+  For bot accounts, consider setting `groupadd` to `all` to allow anyone to add your bot to groups.
+</Tip>
+
+## Get Current Privacy Settings
+
+To fetch current privacy settings:
+
+```
+GET /chat/fetchPrivacySettings/:instanceName
+```
+
+This returns your current privacy configuration.
+
+<RequestExample>
+
+```bash cURL
+curl --request GET \
+  --url https://api.example.com/chat/fetchPrivacySettings/my-instance \
+  --header 'apikey: YOUR_API_KEY'
+```
+
+</RequestExample>
+
+## Usage Notes
+
+<Warning>
+  Changes to privacy settings are permanent and affect how your WhatsApp account operates. Make sure you understand each setting before modifying it.
+</Warning>
+
+<Tip>
+  For business or bot accounts, more open privacy settings (like `all` or `contacts`) generally provide a better user experience.
+</Tip>
+
+<Info>
+  Privacy settings are stored in WhatsApp's servers and persist across device changes and instance recreations.
+</Info>

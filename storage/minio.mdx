@@ -1,0 +1,602 @@
+---
+title: MinIO Storage
+description: Set up self-hosted S3-compatible storage with MinIO for Evolution API
+---
+
+MinIO is a high-performance, S3-compatible object storage system that you can self-host. It's an excellent alternative to Amazon S3 for organizations that want full control over their data storage.
+
+## Overview
+
+MinIO provides:
+
+- S3-compatible API (works with Evolution API's S3 integration)
+- Self-hosted deployment (full data sovereignty)
+- High performance and scalability
+- Simple installation and configuration
+- SSL/TLS support for secure connections
+
+## Installation
+
+### Docker Deployment
+
+The easiest way to deploy MinIO is using Docker:
+
+<Steps>
+  <Step title="Create MinIO directories">
+    Create directories for MinIO data and configuration:
+    
+    ```bash
+    mkdir -p ~/minio/data
+    mkdir -p ~/minio/config
+    ```
+  </Step>
+  
+  <Step title="Run MinIO container">
+    Start MinIO using Docker:
+    
+    ```bash
+    docker run -d \
+      --name minio \
+      -p 9000:9000 \
+      -p 9001:9001 \
+      -e MINIO_ROOT_USER=minioadmin \
+      -e MINIO_ROOT_PASSWORD=minioadmin123 \
+      -v ~/minio/data:/data \
+      minio/minio server /data --console-address ":9001"
+    ```
+  </Step>
+  
+  <Step title="Access MinIO Console">
+    Open your browser and navigate to `http://localhost:9001` to access the MinIO web console.
+    
+    Login with:
+    - Username: `minioadmin`
+    - Password: `minioadmin123`
+  </Step>
+  
+  <Step title="Create a bucket">
+    In the MinIO console, create a new bucket named `evolution` for storing Evolution API media files.
+  </Step>
+  
+  <Step title="Create access credentials">
+    Generate access keys in the MinIO console:
+    
+    1. Go to "Access Keys" in the left sidebar
+    2. Click "Create access key"
+    3. Save the Access Key and Secret Key
+  </Step>
+</Steps>
+
+### Docker Compose Deployment
+
+For production deployments, use Docker Compose:
+
+```yaml docker-compose.yaml
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: evolution_minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: your_secure_password_here
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - evolution-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  minio_data:
+
+networks:
+  evolution-net:
+    driver: bridge
+```
+
+Start the service:
+
+```bash
+docker-compose up -d
+```
+
+## Evolution API Configuration
+
+### Basic Configuration
+
+Configure Evolution API to use MinIO by setting these environment variables:
+
+```bash .env
+# MinIO Storage Configuration
+S3_ENABLED=true
+S3_ACCESS_KEY=your_minio_access_key
+S3_SECRET_KEY=your_minio_secret_key
+S3_BUCKET=evolution
+S3_ENDPOINT=localhost:9000
+S3_USE_SSL=false
+S3_REGION=us-east-1
+S3_PORT=9000
+```
+
+### SSL/TLS Configuration
+
+For production deployments, enable SSL/TLS on MinIO:
+
+<Steps>
+  <Step title="Generate SSL certificates">
+    Create SSL certificates for MinIO:
+    
+    ```bash
+    # Using Let's Encrypt (recommended for production)
+    certbot certonly --standalone -d minio.yourdomain.com
+    
+    # Or generate self-signed certificates (development only)
+    openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 \
+      -subj "/C=US/ST=State/L=City/O=Organization/CN=minio.yourdomain.com" \
+      -keyout minio.key -out minio.crt
+    ```
+  </Step>
+  
+  <Step title="Configure MinIO with certificates">
+    Create the certificate directory and add your certificates:
+    
+    ```bash
+    mkdir -p ~/minio/config/certs
+    cp minio.crt ~/minio/config/certs/public.crt
+    cp minio.key ~/minio/config/certs/private.key
+    ```
+  </Step>
+  
+  <Step title="Update Docker Compose configuration">
+    Mount the certificates directory:
+    
+    ```yaml
+    volumes:
+      - minio_data:/data
+      - ~/minio/config/certs:/root/.minio/certs
+    ```
+  </Step>
+  
+  <Step title="Update Evolution API configuration">
+    Enable SSL in your Evolution API configuration:
+    
+    ```bash
+    S3_ENABLED=true
+    S3_ACCESS_KEY=your_minio_access_key
+    S3_SECRET_KEY=your_minio_secret_key
+    S3_BUCKET=evolution
+    S3_ENDPOINT=minio.yourdomain.com
+    S3_USE_SSL=true
+    S3_REGION=us-east-1
+    S3_PORT=443
+    ```
+  </Step>
+</Steps>
+
+## Environment Variables
+
+### Required Variables
+
+<ResponseField name="S3_ENABLED" type="boolean" required>
+  Enable S3 storage integration.
+  
+  ```bash
+  S3_ENABLED=true
+  ```
+</ResponseField>
+
+<ResponseField name="S3_ACCESS_KEY" type="string" required>
+  MinIO access key ID created in the MinIO console.
+  
+  ```bash
+  S3_ACCESS_KEY=your_minio_access_key
+  ```
+</ResponseField>
+
+<ResponseField name="S3_SECRET_KEY" type="string" required>
+  MinIO secret key corresponding to the access key.
+  
+  ```bash
+  S3_SECRET_KEY=your_minio_secret_key
+  ```
+</ResponseField>
+
+<ResponseField name="S3_BUCKET" type="string" required>
+  The name of the MinIO bucket for storing media files.
+  
+  ```bash
+  S3_BUCKET=evolution
+  ```
+</ResponseField>
+
+<ResponseField name="S3_ENDPOINT" type="string" required>
+  MinIO server endpoint URL (without http:// or https://).
+  
+  **Examples:**
+  - Local: `localhost:9000`
+  - Domain: `minio.yourdomain.com`
+  - IP: `192.168.1.100:9000`
+  
+  ```bash
+  S3_ENDPOINT=minio.yourdomain.com
+  ```
+</ResponseField>
+
+### Optional Variables
+
+<ResponseField name="S3_USE_SSL" type="boolean">
+  Enable SSL/TLS for secure connections to MinIO.
+  
+  **Default:** `true`
+  
+  ```bash
+  S3_USE_SSL=true
+  ```
+</ResponseField>
+
+<ResponseField name="S3_PORT" type="number">
+  The port MinIO is running on.
+  
+  **Default:** `443` (with SSL) or `9000` (without SSL)
+  
+  ```bash
+  S3_PORT=9000
+  ```
+</ResponseField>
+
+<ResponseField name="S3_REGION" type="string">
+  MinIO region identifier. MinIO uses `us-east-1` by default.
+  
+  **Default:** `us-east-1`
+  
+  ```bash
+  S3_REGION=us-east-1
+  ```
+</ResponseField>
+
+## Configuration Examples
+
+<CodeGroup>
+
+```bash Local Development
+# MinIO running on localhost without SSL
+S3_ENABLED=true
+S3_ACCESS_KEY=minioadmin
+S3_SECRET_KEY=minioadmin123
+S3_BUCKET=evolution
+S3_ENDPOINT=localhost:9000
+S3_USE_SSL=false
+S3_REGION=us-east-1
+S3_PORT=9000
+```
+
+```bash Production with SSL
+# MinIO with SSL/TLS enabled
+S3_ENABLED=true
+S3_ACCESS_KEY=prod_access_key_id
+S3_SECRET_KEY=prod_secret_access_key
+S3_BUCKET=evolution
+S3_ENDPOINT=minio.yourdomain.com
+S3_USE_SSL=true
+S3_REGION=us-east-1
+S3_PORT=443
+```
+
+```bash Docker Network
+# MinIO and Evolution API in same Docker network
+S3_ENABLED=true
+S3_ACCESS_KEY=evolution_minio_key
+S3_SECRET_KEY=evolution_minio_secret
+S3_BUCKET=evolution
+S3_ENDPOINT=evolution_minio:9000
+S3_USE_SSL=false
+S3_REGION=us-east-1
+S3_PORT=9000
+```
+
+```bash Remote MinIO Server
+# MinIO on separate server with IP address
+S3_ENABLED=true
+S3_ACCESS_KEY=remote_access_key
+S3_SECRET_KEY=remote_secret_key
+S3_BUCKET=evolution
+S3_ENDPOINT=192.168.1.100:9000
+S3_USE_SSL=false
+S3_REGION=us-east-1
+S3_PORT=9000
+```
+
+</CodeGroup>
+
+## Complete Docker Compose Setup
+
+Here's a complete `docker-compose.yaml` with Evolution API and MinIO:
+
+```yaml docker-compose.yaml
+version: '3.8'
+
+services:
+  api:
+    container_name: evolution_api
+    image: evoapicloud/evolution-api:latest
+    restart: always
+    depends_on:
+      - redis
+      - postgres
+      - minio
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - evolution-net
+    env_file:
+      - .env
+
+  minio:
+    image: minio/minio:latest
+    container_name: evolution_minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - evolution-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  redis:
+    container_name: evolution_redis
+    image: redis:latest
+    restart: always
+    command: redis-server --port 6379 --appendonly yes
+    volumes:
+      - evolution_redis:/data
+    networks:
+      - evolution-net
+
+  postgres:
+    container_name: evolution_postgres
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: evolution_db
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - evolution-net
+
+volumes:
+  evolution_instances:
+  evolution_redis:
+  postgres_data:
+  minio_data:
+
+networks:
+  evolution-net:
+    driver: bridge
+```
+
+Corresponding `.env` file:
+
+```bash .env
+# MinIO Storage
+S3_ENABLED=true
+S3_ACCESS_KEY=your_minio_access_key
+S3_SECRET_KEY=your_minio_secret_key
+S3_BUCKET=evolution
+S3_ENDPOINT=evolution_minio:9000
+S3_USE_SSL=false
+S3_REGION=us-east-1
+S3_PORT=9000
+
+# MinIO Root Password
+MINIO_ROOT_PASSWORD=your_secure_password_here
+
+# Database
+DATABASE_PROVIDER=postgresql
+DATABASE_CONNECTION_URI=postgresql://evolution:${POSTGRES_PASSWORD}@postgres:5432/evolution_db?schema=evolution_api
+
+# PostgreSQL Password
+POSTGRES_PASSWORD=your_postgres_password_here
+
+# Redis Cache
+CACHE_REDIS_ENABLED=true
+CACHE_REDIS_URI=redis://evolution_redis:6379/6
+```
+
+## Bucket Configuration
+
+### Access Policy
+
+Set appropriate access policies for your MinIO bucket:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": ["*"]
+      },
+      "Action": [
+        "s3:GetObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::evolution/*"
+      ]
+    }
+  ]
+}
+```
+
+<Warning>
+  Only make objects publicly accessible if necessary. Evolution API can work with private buckets using signed URLs.
+</Warning>
+
+### Versioning
+
+Enable versioning to protect against accidental deletions:
+
+```bash
+mc version enable myminio/evolution
+```
+
+### Lifecycle Rules
+
+Set up lifecycle rules to manage storage:
+
+```json
+{
+  "Rules": [
+    {
+      "ID": "DeleteOldVersions",
+      "Status": "Enabled",
+      "Expiration": {
+        "Days": 30
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 7
+      }
+    }
+  ]
+}
+```
+
+## Monitoring and Management
+
+### MinIO Console
+
+Access the MinIO console at `http://your-server:9001` to:
+
+- Monitor bucket usage and statistics
+- Manage access keys and users
+- Configure bucket policies and lifecycle rules
+- Browse and download files
+- View server health and performance metrics
+
+### Using MinIO Client (mc)
+
+Install and configure the MinIO client for command-line management:
+
+```bash
+# Install MinIO client
+wget https://dl.min.io/client/mc/release/linux-amd64/mc
+chmod +x mc
+sudo mv mc /usr/local/bin/
+
+# Configure alias
+mc alias set myminio http://localhost:9000 minioadmin minioadmin123
+
+# List buckets
+mc ls myminio
+
+# List objects in bucket
+mc ls myminio/evolution
+
+# Get bucket statistics
+mc admin info myminio
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused errors">
+    If Evolution API cannot connect to MinIO:
+    
+    1. Verify MinIO is running: `docker ps | grep minio`
+    2. Check that the endpoint is accessible: `curl http://localhost:9000/minio/health/live`
+    3. If using Docker networks, ensure both containers are on the same network
+    4. Verify firewall rules allow traffic on port 9000
+  </Accordion>
+  
+  <Accordion title="Access denied errors">
+    If you receive access denied errors:
+    
+    1. Verify the access key and secret key are correct
+    2. Check bucket permissions in the MinIO console
+    3. Ensure the bucket exists: `mc ls myminio/evolution`
+    4. Verify the MinIO user has read/write permissions on the bucket
+  </Accordion>
+  
+  <Accordion title="SSL certificate errors">
+    For SSL/TLS issues:
+    
+    1. Verify certificates are correctly mounted in the Docker container
+    2. Check certificate file permissions: `chmod 644 public.crt` and `chmod 600 private.key`
+    3. Ensure certificate paths are correct: `/root/.minio/certs/`
+    4. For self-signed certificates, you may need to add them to your system's trust store
+  </Accordion>
+  
+  <Accordion title="Performance issues">
+    To improve MinIO performance:
+    
+    1. Use SSD storage for the data volume
+    2. Increase Docker memory allocation if running locally
+    3. Enable erasure coding for large deployments
+    4. Use MinIO's distributed mode for high availability
+    5. Monitor disk I/O and network bandwidth
+  </Accordion>
+</AccordionGroup>
+
+## High Availability Setup
+
+For production deployments, consider MinIO's distributed mode:
+
+```bash
+docker run -d \
+  --name minio1 \
+  -p 9000:9000 \
+  -e MINIO_ROOT_USER=minioadmin \
+  -e MINIO_ROOT_PASSWORD=minioadmin123 \
+  minio/minio server \
+  http://minio{1...4}/data{1...2}
+```
+
+<Note>
+  Distributed MinIO requires at least 4 drives across multiple servers for high availability.
+</Note>
+
+## Security Best Practices
+
+1. **Change default credentials** - Never use `minioadmin/minioadmin123` in production
+2. **Enable SSL/TLS** - Always use HTTPS for production deployments
+3. **Use strong passwords** - Generate secure passwords for root and access keys
+4. **Restrict network access** - Use firewall rules to limit access to MinIO ports
+5. **Regular backups** - Implement backup strategies for MinIO data
+6. **Monitor access logs** - Enable and review MinIO audit logs
+7. **Update regularly** - Keep MinIO updated to the latest stable version
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Amazon S3" icon="aws" href="/storage/s3">
+    Learn about using Amazon S3 instead of self-hosted MinIO
+  </Card>
+  
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Complete guide to deploying Evolution API with Docker
+  </Card>
+</CardGroup>

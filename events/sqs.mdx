@@ -1,0 +1,609 @@
+---
+title: AWS SQS
+description: Stream WhatsApp events to AWS SQS queues for scalable, serverless event processing
+---
+
+AWS SQS (Simple Queue Service) integration enables you to stream WhatsApp events to SQS FIFO queues for serverless architectures, Lambda functions, and AWS-native applications.
+
+## Configuration
+
+Configure SQS connection and event routing through environment variables.
+
+### AWS Credentials
+
+```bash .env
+# Enable SQS integration
+SQS_ENABLED=true
+
+# AWS credentials
+SQS_ACCESS_KEY_ID=your_access_key_id
+SQS_SECRET_ACCESS_KEY=your_secret_access_key
+
+# AWS account ID
+SQS_ACCOUNT_ID=123456789012
+
+# AWS region
+SQS_REGION=us-east-1
+```
+
+<Warning>
+Never commit AWS credentials to version control. Use environment variables or AWS IAM roles when running on EC2/ECS.
+</Warning>
+
+### Global Queue Settings
+
+```bash .env
+# Enable global queues for all instances
+SQS_GLOBAL_ENABLED=true
+
+# Queue name prefix
+SQS_GLOBAL_PREFIX_NAME=evolution
+
+# Force all events into a single queue
+SQS_GLOBAL_FORCE_SINGLE_QUEUE=false
+```
+
+<Tabs>
+  <Tab title="Separate Queues Per Event">
+    Create individual queues for each event type:
+    
+    ```bash .env
+    SQS_GLOBAL_ENABLED=true
+    SQS_GLOBAL_FORCE_SINGLE_QUEUE=false
+    ```
+    
+    Creates queues like:
+    - `evolution_messages_upsert.fifo`
+    - `evolution_qrcode_updated.fifo`
+    - `evolution_connection_update.fifo`
+  </Tab>
+  
+  <Tab title="Single Queue for All Events">
+    Send all events to one queue:
+    
+    ```bash .env
+    SQS_GLOBAL_ENABLED=true
+    SQS_GLOBAL_FORCE_SINGLE_QUEUE=true
+    ```
+    
+    Creates a single queue:
+    - `evolution_singlequeue.fifo`
+  </Tab>
+  
+  <Tab title="Per-Instance Queues">
+    Each instance gets its own queues:
+    
+    ```bash .env
+    SQS_GLOBAL_ENABLED=false
+    ```
+    
+    Creates queues like:
+    - `my_instance_messages_upsert.fifo`
+    - `my_instance_qrcode_updated.fifo`
+  </Tab>
+</Tabs>
+
+## Available Events
+
+Configure which events are sent to SQS:
+
+<Tabs>
+  <Tab title="Instance Events">
+    ```bash .env
+    # Application lifecycle
+    SQS_GLOBAL_APPLICATION_STARTUP=false
+    
+    # Connection events
+    SQS_GLOBAL_QRCODE_UPDATED=true
+    SQS_GLOBAL_CONNECTION_UPDATE=true
+    SQS_GLOBAL_LOGOUT_INSTANCE=false
+    SQS_GLOBAL_REMOVE_INSTANCE=false
+    ```
+  </Tab>
+  
+  <Tab title="Message Events">
+    ```bash .env
+    # Message events
+    SQS_GLOBAL_MESSAGES_SET=true
+    SQS_GLOBAL_MESSAGES_UPSERT=true
+    SQS_GLOBAL_MESSAGES_EDITED=true
+    SQS_GLOBAL_MESSAGES_UPDATE=true
+    SQS_GLOBAL_MESSAGES_DELETE=true
+    SQS_GLOBAL_SEND_MESSAGE=true
+    ```
+  </Tab>
+  
+  <Tab title="Contact Events">
+    ```bash .env
+    # Contact events
+    SQS_GLOBAL_CONTACTS_SET=true
+    SQS_GLOBAL_CONTACTS_UPSERT=true
+    SQS_GLOBAL_CONTACTS_UPDATE=true
+    SQS_GLOBAL_PRESENCE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Chat & Group Events">
+    ```bash .env
+    # Chat events
+    SQS_GLOBAL_CHATS_SET=true
+    SQS_GLOBAL_CHATS_UPSERT=true
+    SQS_GLOBAL_CHATS_UPDATE=true
+    SQS_GLOBAL_CHATS_DELETE=true
+    
+    # Group events
+    SQS_GLOBAL_GROUPS_UPSERT=true
+    SQS_GLOBAL_GROUPS_UPDATE=true
+    SQS_GLOBAL_GROUP_PARTICIPANTS_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Other Events">
+    ```bash .env
+    # Label events
+    SQS_GLOBAL_LABELS_EDIT=true
+    SQS_GLOBAL_LABELS_ASSOCIATION=true
+    
+    # Call events
+    SQS_GLOBAL_CALL=true
+    
+    # Typebot integration
+    SQS_GLOBAL_TYPEBOT_START=false
+    SQS_GLOBAL_TYPEBOT_CHANGE_STATUS=false
+    ```
+  </Tab>
+</Tabs>
+
+## Per-Instance Configuration
+
+When `SQS_GLOBAL_ENABLED=false`, configure SQS for specific instances:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/sqs/set/instance_name \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sqs": {
+      "enabled": true,
+      "events": [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "QRCODE_UPDATED",
+        "CONNECTION_UPDATE"
+      ]
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await axios.post(
+  'https://your-api.com/sqs/set/instance_name',
+  {
+    sqs: {
+      enabled: true,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'QRCODE_UPDATED',
+        'CONNECTION_UPDATE'
+      ]
+    }
+  },
+  {
+    headers: { 'apikey': 'YOUR_API_KEY' }
+  }
+);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-api.com/sqs/set/instance_name',
+    json={
+        'sqs': {
+            'enabled': True,
+            'events': [
+                'MESSAGES_UPSERT',
+                'MESSAGES_UPDATE',
+                'QRCODE_UPDATED',
+                'CONNECTION_UPDATE'
+            ]
+        }
+    },
+    headers={'apikey': 'YOUR_API_KEY'}
+)
+```
+</CodeGroup>
+
+## Queue Setup
+
+Evolution API automatically creates SQS FIFO queues when enabled:
+
+<Steps>
+  <Step title="Queue Creation">
+    Queues are created with `.fifo` suffix for ordered message delivery:
+    ```
+    evolution_messages_upsert.fifo
+    ```
+  </Step>
+  
+  <Step title="FIFO Configuration">
+    - **FIFO**: Ensures message ordering
+    - **Content-based deduplication**: Enabled for global queues
+    - **Message deduplication ID**: Set for per-instance queues
+  </Step>
+  
+  <Step title="Message Grouping">
+    Messages are grouped by:
+    - Global: `{server_name}-{event}-{instance}`
+    - Per-instance: `evolution`
+  </Step>
+</Steps>
+
+<Note>
+FIFO queues ensure messages are processed in the order they're sent, which is critical for maintaining conversation context.
+</Note>
+
+## Large Payload Handling
+
+SQS has a 256 KB message size limit. Evolution API automatically handles larger payloads:
+
+```bash .env
+# Maximum payload size before using S3 (bytes)
+SQS_MAX_PAYLOAD_SIZE=262144
+
+# S3 must be enabled for large payloads
+S3_ENABLED=true
+S3_BUCKET=evolution
+S3_ACCESS_KEY=your_s3_access_key
+S3_SECRET_KEY=your_s3_secret_key
+S3_ENDPOINT=s3.amazonaws.com
+S3_REGION=us-east-1
+```
+
+### How It Works
+
+<Steps>
+  <Step title="Size Check">
+    Evolution API checks if the message exceeds `SQS_MAX_PAYLOAD_SIZE`.
+  </Step>
+  
+  <Step title="S3 Upload">
+    If too large, the payload is uploaded to S3 as a JSON file:
+    ```
+    messages/instance_name_messages_upsert_1709550600000.json
+    ```
+  </Step>
+  
+  <Step title="Reference Message">
+    A small message is sent to SQS with the S3 URL:
+    ```json
+    {
+      "event": "messages.upsert",
+      "instance": "my_instance",
+      "dataType": "s3",
+      "data": {
+        "fileUrl": "https://s3.amazonaws.com/evolution/messages/..."
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Download in Consumer">
+    Your consumer downloads the full payload from S3 when `dataType: "s3"`.
+  </Step>
+</Steps>
+
+<Warning>
+If S3 is not enabled and a message exceeds the size limit, it will be dropped with an error logged.
+</Warning>
+
+## Message Format
+
+Messages sent to SQS have the following structure:
+
+```json
+{
+  "event": "messages.upsert",
+  "instance": "my_instance",
+  "dataType": "json",
+  "data": {
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0XXXXX"
+    },
+    "message": {
+      "conversation": "Hello from WhatsApp!"
+    },
+    "messageTimestamp": 1709550600,
+    "pushName": "John Doe"
+  },
+  "server": "evolution",
+  "server_url": "https://your-evolution-api.com",
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "sender": "5511999999999",
+  "apikey": "instance_api_key"
+}
+```
+
+## Consuming Events
+
+Examples of consuming events from SQS:
+
+<CodeGroup>
+```javascript Node.js
+const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require('@aws-sdk/client-sqs');
+
+const client = new SQSClient({ region: 'us-east-1' });
+
+const queueUrl = 'https://sqs.us-east-1.amazonaws.com/123456789012/evolution_messages_upsert.fifo';
+
+async function pollMessages() {
+  while (true) {
+    const command = new ReceiveMessageCommand({
+      QueueUrl: queueUrl,
+      MaxNumberOfMessages: 10,
+      WaitTimeSeconds: 20, // Long polling
+      VisibilityTimeout: 30
+    });
+    
+    const response = await client.send(command);
+    
+    if (response.Messages) {
+      for (const message of response.Messages) {
+        try {
+          const event = JSON.parse(message.Body);
+          
+          console.log('Received event:', event.event);
+          console.log('Instance:', event.instance);
+          
+          // Handle S3 payloads
+          if (event.dataType === 's3') {
+            const fullData = await downloadFromS3(event.data.fileUrl);
+            event.data = fullData;
+          }
+          
+          // Process the event
+          await processEvent(event);
+          
+          // Delete message after successful processing
+          await client.send(new DeleteMessageCommand({
+            QueueUrl: queueUrl,
+            ReceiptHandle: message.ReceiptHandle
+          }));
+          
+        } catch (error) {
+          console.error('Error processing message:', error);
+        }
+      }
+    }
+  }
+}
+
+pollMessages().catch(console.error);
+```
+
+```python Python
+import boto3
+import json
+import time
+
+sqs = boto3.client('sqs', region_name='us-east-1')
+
+queue_url = 'https://sqs.us-east-1.amazonaws.com/123456789012/evolution_messages_upsert.fifo'
+
+def poll_messages():
+    while True:
+        response = sqs.receive_message(
+            QueueUrl=queue_url,
+            MaxNumberOfMessages=10,
+            WaitTimeSeconds=20,
+            VisibilityTimeout=30
+        )
+        
+        messages = response.get('Messages', [])
+        
+        for message in messages:
+            try:
+                event = json.loads(message['Body'])
+                
+                print(f"Received event: {event['event']}")
+                print(f"Instance: {event['instance']}")
+                
+                # Handle S3 payloads
+                if event.get('dataType') == 's3':
+                    full_data = download_from_s3(event['data']['fileUrl'])
+                    event['data'] = full_data
+                
+                # Process the event
+                process_event(event)
+                
+                # Delete message after successful processing
+                sqs.delete_message(
+                    QueueUrl=queue_url,
+                    ReceiptHandle=message['ReceiptHandle']
+                )
+                
+            except Exception as e:
+                print(f"Error processing message: {e}")
+        
+        if not messages:
+            time.sleep(1)
+
+if __name__ == '__main__':
+    poll_messages()
+```
+
+```go Go
+package main
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    
+    "github.com/aws/aws-sdk-go-v2/config"
+    "github.com/aws/aws-sdk-go-v2/service/sqs"
+    "github.com/aws/aws-sdk-go-v2/service/sqs/types"
+)
+
+type Event struct {
+    Event     string                 `json:"event"`
+    Instance  string                 `json:"instance"`
+    DataType  string                 `json:"dataType"`
+    Data      map[string]interface{} `json:"data"`
+    ServerURL string                 `json:"server_url"`
+}
+
+func main() {
+    cfg, err := config.LoadDefaultConfig(context.TODO())
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    client := sqs.NewFromConfig(cfg)
+    queueURL := "https://sqs.us-east-1.amazonaws.com/123456789012/evolution_messages_upsert.fifo"
+    
+    for {
+        result, err := client.ReceiveMessage(context.TODO(), &sqs.ReceiveMessageInput{
+            QueueUrl:            &queueURL,
+            MaxNumberOfMessages: 10,
+            WaitTimeSeconds:     20,
+            VisibilityTimeout:   30,
+        })
+        
+        if err != nil {
+            log.Printf("Error receiving messages: %v", err)
+            continue
+        }
+        
+        for _, message := range result.Messages {
+            var event Event
+            err := json.Unmarshal([]byte(*message.Body), &event)
+            if err != nil {
+                log.Printf("Error parsing message: %v", err)
+                continue
+            }
+            
+            fmt.Printf("Received event: %s\n", event.Event)
+            fmt.Printf("Instance: %s\n", event.Instance)
+            
+            // Handle S3 payloads
+            if event.DataType == "s3" {
+                // Download from S3
+            }
+            
+            // Process event
+            processEvent(event)
+            
+            // Delete message
+            client.DeleteMessage(context.TODO(), &sqs.DeleteMessageInput{
+                QueueUrl:      &queueURL,
+                ReceiptHandle: message.ReceiptHandle,
+            })
+        }
+    }
+}
+```
+</CodeGroup>
+
+## AWS Lambda Integration
+
+Process SQS events with AWS Lambda:
+
+```javascript Lambda Function
+exports.handler = async (event) => {
+  for (const record of event.Records) {
+    const whatsappEvent = JSON.parse(record.body);
+    
+    console.log('Event:', whatsappEvent.event);
+    console.log('Instance:', whatsappEvent.instance);
+    
+    // Handle S3 payloads
+    if (whatsappEvent.dataType === 's3') {
+      const s3Url = whatsappEvent.data.fileUrl;
+      // Download from S3
+      const fullData = await downloadFromS3(s3Url);
+      whatsappEvent.data = fullData;
+    }
+    
+    // Process the event
+    await processWhatsAppEvent(whatsappEvent);
+  }
+  
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ processed: event.Records.length })
+  };
+};
+```
+
+<Note>
+Configure your Lambda function with the SQS queue as an event source trigger.
+</Note>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Long Polling">
+    Set `WaitTimeSeconds: 20` to reduce empty responses and costs:
+    ```javascript
+    WaitTimeSeconds: 20
+    ```
+  </Step>
+  
+  <Step title="Set Appropriate Visibility Timeout">
+    Ensure timeout is longer than your processing time:
+    ```javascript
+    VisibilityTimeout: 300 // 5 minutes
+    ```
+  </Step>
+  
+  <Step title="Delete Messages After Processing">
+    Always delete messages after successful processing to avoid reprocessing.
+  </Step>
+  
+  <Step title="Handle Failures with Dead Letter Queue">
+    Configure a DLQ in AWS console for messages that fail repeatedly.
+  </Step>
+  
+  <Step title="Monitor Queue Depth">
+    Set CloudWatch alarms for queue depth to detect processing issues.
+  </Step>
+</Steps>
+
+<Warning>
+FIFO queues have a limit of 3,000 messages per second with batching. For higher throughput, consider using standard queues (but lose ordering guarantees).
+</Warning>
+
+## Troubleshooting
+
+<Accordion title="Queue creation failed">
+  1. Verify AWS credentials have `sqs:CreateQueue` permission
+  2. Check AWS account limits for number of queues
+  3. Ensure queue name is valid (alphanumeric and hyphens only)
+  4. Review CloudWatch logs for detailed error messages
+</Accordion>
+
+<Accordion title="Messages not appearing in queue">
+  1. Check that specific events are enabled in configuration
+  2. Verify `SQS_ENABLED=true`
+  3. Check Evolution API logs for SQS errors
+  4. Verify instance is connected to WhatsApp
+  5. Check AWS IAM permissions for `sqs:SendMessage`
+</Accordion>
+
+<Accordion title="Large message errors">
+  1. Enable S3 integration: `S3_ENABLED=true`
+  2. Verify S3 credentials and bucket permissions
+  3. Check S3 bucket exists in the same region
+  4. Review Evolution API logs for S3 upload errors
+</Accordion>
+
+<Accordion title="Messages processed multiple times">
+  This is normal if processing fails or visibility timeout expires. Implement idempotency using message IDs.
+</Accordion>

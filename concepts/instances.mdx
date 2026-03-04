@@ -1,0 +1,501 @@
+---
+title: 'Instances'
+description: 'Learn how to create, manage, and connect WhatsApp instances with Evolution API'
+---
+
+## What are Instances?
+
+In Evolution API, an **instance** represents a single WhatsApp connection. Each instance operates independently with its own:
+
+- WhatsApp session and authentication state
+- Connection status and QR code
+- Configuration settings (webhooks, events, proxies)
+- Database isolation (messages, contacts, chats)
+- Event handlers and integrations
+
+Think of an instance as a virtual WhatsApp client. You can create multiple instances to manage different WhatsApp numbers or business accounts from a single Evolution API server.
+
+<Info>
+  Each instance has a unique `instanceName` that identifies it across all API operations. This name must be unique within your Evolution API installation.
+</Info>
+
+## Instance Architecture
+
+Evolution API uses the `WAMonitoringService` to manage instance lifecycle and state. When you create an instance, the system:
+
+1. Generates a unique `instanceId` (UUID)
+2. Creates a database record with connection metadata
+3. Initializes the WhatsApp channel (Baileys, Business API, or Evolution)
+4. Stores authentication state (Redis, database, or provider storage)
+5. Sets up event listeners and webhook configurations
+
+Here's how instances are stored and tracked:
+
+```typescript
+// From src/api/services/monitor.service.ts:40
+public readonly waInstances: Record<string, any> = {};
+
+// Each instance contains:
+{
+  instanceName: "my-instance",
+  instanceId: "550e8400-e29b-41d4-a716-446655440000",
+  integration: "WHATSAPP-BAILEYS",
+  connectionStatus: "open" | "connecting" | "close",
+  token: "YOUR-INSTANCE-TOKEN"
+}
+```
+
+## Creating an Instance
+
+To create a new instance, send a POST request to `/instance/create`:
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://your-api.com/instance/create \
+  -H "apikey: YOUR_GLOBAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "my-whatsapp",
+    "qrcode": true,
+    "integration": "WHATSAPP-BAILEYS"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api.com/instance/create', {
+  method: 'POST',
+  headers: {
+    'apikey': 'YOUR_GLOBAL_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    instanceName: 'my-whatsapp',
+    qrcode: true,
+    integration: 'WHATSAPP-BAILEYS'
+  })
+});
+
+const data = await response.json();
+console.log('Instance created:', data.instance.instanceName);
+console.log('Auth token:', data.hash);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-api.com/instance/create',
+    headers={
+        'apikey': 'YOUR_GLOBAL_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'instanceName': 'my-whatsapp',
+        'qrcode': True,
+        'integration': 'WHATSAPP-BAILEYS'
+    }
+)
+
+data = response.json()
+print(f"Instance: {data['instance']['instanceName']}")
+print(f"Token: {data['hash']}")
+```
+
+</CodeGroup>
+
+<Warning>
+  Store the returned `hash` (instance token) securely. You'll need it to authenticate subsequent requests to this specific instance.
+</Warning>
+
+### Create with Webhook Configuration
+
+You can configure webhooks during instance creation:
+
+```json
+{
+  "instanceName": "sales-bot",
+  "qrcode": true,
+  "webhook": {
+    "enabled": true,
+    "url": "https://your-app.com/webhook",
+    "byEvents": true,
+    "base64": false,
+    "headers": {
+      "Authorization": "Bearer your-webhook-secret"
+    }
+  }
+}
+```
+
+### Create with Settings
+
+Configure instance behavior at creation time:
+
+```json
+{
+  "instanceName": "support-team",
+  "qrcode": true,
+  "rejectCall": true,
+  "msgCall": "Please send a text message instead of calling.",
+  "groupsIgnore": false,
+  "alwaysOnline": true,
+  "readMessages": false,
+  "readStatus": false
+}
+```
+
+## Connecting to WhatsApp
+
+After creating an instance, you need to connect it to WhatsApp:
+
+### Using QR Code (Baileys)
+
+<Steps>
+  <Step title="Request QR Code">
+    If you set `qrcode: true` during creation, the QR code is returned immediately. Otherwise, connect manually:
+
+    ```bash
+    curl -X GET https://your-api.com/instance/connect/my-whatsapp \
+      -H "apikey: YOUR_INSTANCE_TOKEN"
+    ```
+  </Step>
+
+  <Step title="Scan QR Code">
+    The response contains a base64-encoded QR code:
+
+    ```json
+    {
+      "qrcode": {
+        "base64": "data:image/png;base64,iVBORw0KGgoAAAANS...",
+        "count": 1
+      },
+      "instance": {
+        "instanceName": "my-whatsapp",
+        "status": "connecting"
+      }
+    }
+    ```
+
+    Display this QR code in your application or scan it directly with WhatsApp.
+  </Step>
+
+  <Step title="Wait for Connection">
+    Monitor the connection status:
+
+    ```bash
+    curl -X GET https://your-api.com/instance/connectionState/my-whatsapp \
+      -H "apikey: YOUR_INSTANCE_TOKEN"
+    ```
+
+    When connected, status changes to `open`.
+  </Step>
+</Steps>
+
+### Using Phone Number (Business API)
+
+For WhatsApp Business API integration:
+
+```json
+{
+  "instanceName": "business-account",
+  "integration": "WHATSAPP-BUSINESS",
+  "number": "5511999999999",
+  "token": "YOUR_META_ACCESS_TOKEN",
+  "businessId": "YOUR_BUSINESS_ID"
+}
+```
+
+<Note>
+  Business API instances connect automatically without QR codes, using Meta's authentication system.
+</Note>
+
+## Instance Lifecycle Management
+
+Evolution API provides complete instance lifecycle control:
+
+### Check Connection State
+
+```bash
+curl -X GET https://your-api.com/instance/connectionState/my-whatsapp \
+  -H "apikey: YOUR_INSTANCE_TOKEN"
+```
+
+Response:
+```json
+{
+  "instance": {
+    "instanceName": "my-whatsapp",
+    "state": "open"
+  }
+}
+```
+
+Possible states:
+- `close` - Not connected
+- `connecting` - QR code displayed, waiting for scan
+- `open` - Connected and ready
+
+### Restart Instance
+
+Restart a connected instance without logging out:
+
+```bash
+curl -X PUT https://your-api.com/instance/restart/my-whatsapp \
+  -H "apikey: YOUR_INSTANCE_TOKEN"
+```
+
+<Info>
+  Restarting refreshes the connection without destroying the session. Useful for applying configuration changes or recovering from connection issues.
+</Info>
+
+### Logout Instance
+
+Disconnect from WhatsApp while preserving the instance:
+
+```bash
+curl -X DELETE https://your-api.com/instance/logout/my-whatsapp \
+  -H "apikey: YOUR_INSTANCE_TOKEN"
+```
+
+This removes the WhatsApp session but keeps the instance configuration. You'll need to scan a new QR code to reconnect.
+
+### Delete Instance
+
+Permanently remove an instance and all its data:
+
+```bash
+curl -X DELETE https://your-api.com/instance/delete/my-whatsapp \
+  -H "apikey: YOUR_INSTANCE_TOKEN"
+```
+
+<Warning>
+  Deleting an instance removes all associated data including messages, contacts, and chats. This action cannot be undone.
+</Warning>
+
+From the source code (`src/api/services/monitor.service.ts:452`):
+
+```typescript
+public async deleteInstance({ instanceName }: InstanceDto) {
+  // Logout first if connected
+  if (instance.state === 'connecting' || instance.state === 'open') {
+    await this.logout({ instanceName });
+  }
+  
+  // Send webhook notification
+  waInstances?.sendDataWebhook(Events.INSTANCE_DELETE, {
+    instanceName,
+    instanceId: waInstances.instanceId,
+  });
+  
+  // Remove from memory and storage
+  this.eventEmitter.emit('remove.instance', instanceName, 'inner');
+}
+```
+
+## Instance Isolation
+
+Evolution API ensures complete isolation between instances:
+
+### Database Isolation
+
+Every database query includes the `instanceId` to prevent data leakage:
+
+```typescript
+// All queries are scoped by instance
+const messages = await prismaRepository.message.findMany({
+  where: { 
+    instanceId: instance.id,  // Always filter by instanceId
+    fromMe: true 
+  }
+});
+```
+
+### Memory Isolation
+
+Each instance runs in its own context:
+
+```typescript
+// From src/api/services/monitor.service.ts:273
+this.waInstances[instanceData.instanceName] = instance;
+
+// Each instance has isolated:
+// - WhatsApp client connection
+// - Message queue and processors
+// - Event handlers
+// - Cache namespaces
+```
+
+### Authentication Isolation
+
+Instances can use different authentication methods:
+
+- **Global API Key**: Access all instances
+- **Instance Token**: Access only specific instance
+
+```typescript
+// From src/api/guards/auth.guard.ts:10
+if (env.KEY === key) {
+  return next(); // Global key - access all
+}
+
+// Check instance-specific token
+const instance = await prismaRepository.instance.findUnique({
+  where: { name: param.instanceName },
+});
+if (instance.token === key) {
+  return next(); // Instance token - access one
+}
+```
+
+## Auto-Cleanup and Expiration
+
+Evolution API can automatically remove disconnected instances:
+
+```bash
+# In .env
+DEL_INSTANCE=5  # Delete after 5 minutes of no connection
+```
+
+From `src/api/services/monitor.service.ts:45`:
+
+```typescript
+public delInstanceTime(instance: string) {
+  const time = this.configService.get<DelInstance>('DEL_INSTANCE');
+  if (typeof time === 'number' && time > 0) {
+    this.delInstanceTimeouts[instance] = setTimeout(
+      async () => {
+        if (this.waInstances[instance]?.connectionStatus?.state !== 'open') {
+          this.eventEmitter.emit('remove.instance', instance, 'inner');
+        }
+      },
+      1000 * 60 * time,
+    );
+  }
+}
+```
+
+<Tip>
+  Set `DEL_INSTANCE=false` to disable automatic cleanup and keep all instances in memory permanently.
+</Tip>
+
+## Fetching Instance Information
+
+Retrieve detailed information about your instances:
+
+### Fetch All Instances
+
+```bash
+curl -X GET https://your-api.com/instance/fetchInstances \
+  -H "apikey: YOUR_GLOBAL_API_KEY"
+```
+
+### Fetch Specific Instance
+
+```bash
+curl -X GET "https://your-api.com/instance/fetchInstances?instanceName=my-whatsapp" \
+  -H "apikey: YOUR_INSTANCE_TOKEN"
+```
+
+Response includes:
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "my-whatsapp",
+    "connectionStatus": "open",
+    "ownerJid": "5511999999999@s.whatsapp.net",
+    "profileName": "My Business",
+    "number": "5511999999999",
+    "integration": "WHATSAPP-BAILEYS",
+    "_count": {
+      "Message": 1523,
+      "Contact": 89,
+      "Chat": 34
+    },
+    "Webhook": { "enabled": true, "url": "https://your-app.com/webhook" },
+    "Setting": { "alwaysOnline": true, "readMessages": false }
+  }
+]
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Descriptive Instance Names">
+    Choose clear, meaningful names that identify the purpose:
+    - ✅ `sales-brazil`, `support-team-1`, `customer-bot`
+    - ❌ `instance1`, `test`, `my-instance`
+    
+    Instance names cannot be changed after creation.
+  </Accordion>
+
+  <Accordion title="Store Instance Tokens Securely">
+    Each instance receives a unique authentication token. Store these securely:
+    
+    ```javascript
+    // Store in environment variables or secure vault
+    process.env.INSTANCE_TOKEN_SALES = 'ABC123...';
+    process.env.INSTANCE_TOKEN_SUPPORT = 'XYZ789...';
+    ```
+    
+    Never commit tokens to version control.
+  </Accordion>
+
+  <Accordion title="Monitor Connection Status">
+    Implement health checks to monitor instance connectivity:
+    
+    ```javascript
+    async function checkInstanceHealth(instanceName) {
+      const state = await fetch(
+        `https://your-api.com/instance/connectionState/${instanceName}`,
+        { headers: { apikey: INSTANCE_TOKEN } }
+      ).then(r => r.json());
+      
+      if (state.instance.state !== 'open') {
+        // Alert or reconnect
+        console.error(`Instance ${instanceName} is ${state.instance.state}`);
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Handle Instance Events">
+    Subscribe to instance lifecycle events via webhooks:
+    
+    - `INSTANCE_CREATE` - New instance created
+    - `INSTANCE_DELETE` - Instance deleted
+    - `CONNECTION_UPDATE` - Connection state changed
+    - `QRCODE_UPDATED` - New QR code available
+    - `REMOVE_INSTANCE` - Instance auto-removed
+  </Accordion>
+
+  <Accordion title="Plan for Scaling">
+    Design your architecture to support multiple instances:
+    
+    - Use unique names per tenant/customer
+    - Store instance metadata in your database
+    - Implement connection pooling for database access
+    - Consider using Redis for session storage at scale
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/concepts/authentication">
+    Learn how to secure your instances with API keys
+  </Card>
+  
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Configure webhooks to receive real-time events
+  </Card>
+  
+  <Card title="Multi-Tenant" icon="users" href="/concepts/multi-tenant">
+    Build multi-tenant applications with instance isolation
+  </Card>
+  
+  <Card title="Send Messages" icon="paper-plane" href="/api/messages/send-text">
+    Start sending messages with your instance
+  </Card>
+</CardGroup>

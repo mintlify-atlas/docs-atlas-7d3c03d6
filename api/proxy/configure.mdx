@@ -1,0 +1,377 @@
+---
+title: 'Configure Proxy'
+api: 'POST /proxy/set/:instanceName'
+description: 'Configure HTTP/HTTPS/SOCKS proxy settings for your WhatsApp instance.'
+---
+
+## Overview
+
+You can route your WhatsApp instance traffic through a proxy server. This is useful for bypassing network restrictions, improving privacy, or routing traffic through specific geographic locations.
+
+<Warning>
+  Proxy configuration is validated before being applied. Invalid proxy settings will be rejected to prevent connection issues.
+</Warning>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+<ParamField body="enabled" type="boolean" default="false">
+  Enable or disable the proxy. Set to `false` to disable proxy and use direct connection.
+</ParamField>
+
+<ParamField body="host" type="string" required>
+  Proxy server hostname or IP address (e.g., "proxy.example.com" or "192.168.1.100").
+</ParamField>
+
+<ParamField body="port" type="string" required>
+  Proxy server port (e.g., "8080" or "3128").
+</ParamField>
+
+<ParamField body="protocol" type="string" required>
+  Proxy protocol. Supported values:
+  - `http`: HTTP proxy
+  - `https`: HTTPS proxy
+  - `socks4`: SOCKS4 proxy
+  - `socks5`: SOCKS5 proxy
+</ParamField>
+
+<ParamField body="username" type="string">
+  Proxy authentication username (if required by your proxy server).
+</ParamField>
+
+<ParamField body="password" type="string">
+  Proxy authentication password (if required by your proxy server).
+</ParamField>
+
+## Response
+
+<ResponseField name="proxy" type="object">
+  The configured proxy settings.
+  
+  <Expandable title="properties">
+    <ResponseField name="enabled" type="boolean">
+      Whether the proxy is enabled.
+    </ResponseField>
+    
+    <ResponseField name="host" type="string">
+      Proxy server hostname.
+    </ResponseField>
+    
+    <ResponseField name="port" type="string">
+      Proxy server port.
+    </ResponseField>
+    
+    <ResponseField name="protocol" type="string">
+      Proxy protocol being used.
+    </ResponseField>
+    
+    <ResponseField name="username" type="string">
+      Proxy username (if configured).
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="validated" type="boolean">
+  Whether the proxy was successfully validated.
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL (HTTP Proxy)
+curl --request POST \
+  --url https://api.example.com/proxy/set/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "enabled": true,
+    "host": "proxy.example.com",
+    "port": "8080",
+    "protocol": "http"
+  }'
+```
+
+```bash cURL (SOCKS5 with Auth)
+curl --request POST \
+  --url https://api.example.com/proxy/set/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "enabled": true,
+    "host": "socks-proxy.example.com",
+    "port": "1080",
+    "protocol": "socks5",
+    "username": "proxyuser",
+    "password": "proxypass123"
+  }'
+```
+
+```bash cURL (Disable Proxy)
+curl --request POST \
+  --url https://api.example.com/proxy/set/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "enabled": false
+  }'
+```
+
+```javascript JavaScript
+// Configure HTTP proxy
+const response = await fetch(
+  'https://api.example.com/proxy/set/my-instance',
+  {
+    method: 'POST',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      enabled: true,
+      host: 'proxy.example.com',
+      port: '8080',
+      protocol: 'http',
+      username: 'proxyuser',
+      password: 'proxypass123'
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+# Configure SOCKS5 proxy
+response = requests.post(
+    'https://api.example.com/proxy/set/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'enabled': True,
+        'host': 'socks-proxy.example.com',
+        'port': '1080',
+        'protocol': 'socks5',
+        'username': 'proxyuser',
+        'password': 'proxypass123'
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Success
+{
+  "proxy": {
+    "enabled": true,
+    "host": "proxy.example.com",
+    "port": "8080",
+    "protocol": "http",
+    "username": "proxyuser"
+  },
+  "validated": true
+}
+```
+
+```json 400 Bad Request (Invalid Proxy)
+{
+  "error": "Invalid proxy",
+  "message": "Could not connect to the specified proxy server"
+}
+```
+
+```json 400 Bad Request (Missing Fields)
+{
+  "error": "Invalid request",
+  "message": "Host, port, and protocol are required when proxy is enabled"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized",
+  "message": "Invalid API key"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Instance not found",
+  "message": "The instance 'my-instance' does not exist"
+}
+```
+
+</ResponseExample>
+
+## Proxy Validation
+
+Before applying proxy settings, Evolution API validates the proxy by:
+
+1. Attempting to connect to `https://icanhazip.com/` directly
+2. Attempting to connect through the configured proxy
+3. Comparing the IP addresses to ensure the proxy is working
+
+<Note>
+  The proxy must successfully route traffic and change the origin IP address to pass validation.
+</Note>
+
+## Supported Proxy Types
+
+### HTTP Proxy
+
+<Info>
+  Standard HTTP proxy. Most common type, widely supported. Good for basic proxy needs.
+</Info>
+
+```json
+{
+  "protocol": "http",
+  "host": "proxy.example.com",
+  "port": "8080"
+}
+```
+
+### HTTPS Proxy
+
+<Info>
+  Encrypted HTTP proxy connection. Provides additional security for the proxy connection itself.
+</Info>
+
+```json
+{
+  "protocol": "https",
+  "host": "secure-proxy.example.com",
+  "port": "8443"
+}
+```
+
+### SOCKS4/SOCKS5
+
+<Info>
+  SOCKS proxies work at a lower level and can handle any type of traffic. SOCKS5 supports authentication, while SOCKS4 does not.
+</Info>
+
+```json
+{
+  "protocol": "socks5",
+  "host": "socks-proxy.example.com",
+  "port": "1080",
+  "username": "user",
+  "password": "pass"
+}
+```
+
+## Usage Notes
+
+<Warning>
+  Changing proxy settings while the instance is connected may cause a brief disconnection. The instance will automatically reconnect using the new proxy settings.
+</Warning>
+
+<Tip>
+  Always test your proxy configuration with a development instance before applying to production instances.
+</Tip>
+
+<Info>
+  Proxy credentials (username and password) are stored securely but should still be treated as sensitive information.
+</Info>
+
+## Get Current Proxy Configuration
+
+To retrieve current proxy settings:
+
+```
+GET /proxy/find/:instanceName
+```
+
+This returns the currently configured proxy settings (password is not included in the response for security).
+
+<RequestExample>
+
+```bash cURL
+curl --request GET \
+  --url https://api.example.com/proxy/find/my-instance \
+  --header 'apikey: YOUR_API_KEY'
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 Success
+{
+  "proxy": {
+    "enabled": true,
+    "host": "proxy.example.com",
+    "port": "8080",
+    "protocol": "http",
+    "username": "proxyuser"
+  }
+}
+```
+
+</ResponseExample>
+
+## Disabling Proxy
+
+To disable proxy and use a direct connection:
+
+```json
+{
+  "enabled": false
+}
+```
+
+When disabled, the host, port, protocol, username, and password fields are automatically cleared.
+
+## Common Use Cases
+
+### Geographic Routing
+
+Route your WhatsApp instance through a specific country's proxy to appear as if you're connecting from that location.
+
+### Network Restrictions
+
+Bypass corporate firewalls or network restrictions that may block WhatsApp's servers.
+
+### Load Distribution
+
+Distribute multiple instances across different proxy servers to balance load and reduce the risk of rate limiting.
+
+### Privacy Enhancement
+
+Hide your server's actual IP address from WhatsApp's servers by routing all traffic through a proxy.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Proxy validation fails">
+    Ensure your proxy server is running and accessible. Check that the host, port, and protocol are correct. Verify firewall rules allow outbound connections to the proxy.
+  </Accordion>
+  
+  <Accordion title="Instance won't connect with proxy">
+    Try disabling the proxy temporarily to verify the instance works without it. Check proxy server logs for connection errors. Ensure the proxy supports HTTPS connections.
+  </Accordion>
+  
+  <Accordion title="Authentication errors">
+    Verify username and password are correct. Check that your proxy server supports authentication. Try connecting without authentication first to isolate the issue.
+  </Accordion>
+</AccordionGroup>

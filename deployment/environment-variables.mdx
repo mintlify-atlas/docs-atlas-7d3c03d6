@@ -1,0 +1,823 @@
+---
+title: Environment Variables
+description: Complete reference for all Evolution API environment variables
+---
+
+Evolution API is configured entirely through environment variables. This page documents all available options organized by category.
+
+## Getting Started
+
+Create a `.env` file in your project root based on the provided `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file with your configuration values.
+
+<Warning>
+  Never commit your `.env` file to version control. It contains sensitive credentials and API keys.
+</Warning>
+
+## Server Configuration
+
+Basic server settings that control how Evolution API runs.
+
+<ResponseField name="SERVER_NAME" type="string" default="evolution">
+  The name identifier for your Evolution API server.
+  
+  ```bash
+  SERVER_NAME=evolution
+  ```
+</ResponseField>
+
+<ResponseField name="SERVER_TYPE" type="string" default="http">
+  Server protocol type. Use `http` or `https`.
+  
+  ```bash
+  SERVER_TYPE=http
+  ```
+</ResponseField>
+
+<ResponseField name="SERVER_PORT" type="number" default="8080">
+  The port your API server will listen on.
+  
+  ```bash
+  SERVER_PORT=8080
+  ```
+</ResponseField>
+
+<ResponseField name="SERVER_URL" type="string" required>
+  The full URL where your Evolution API is accessible. Used for webhooks and callbacks.
+  
+  ```bash
+  SERVER_URL=http://localhost:8080
+  # Or for production:
+  SERVER_URL=https://api.yourdomain.com
+  ```
+</ResponseField>
+
+### SSL Configuration
+
+<ResponseField name="SSL_CONF_PRIVKEY" type="string">
+  Path to your SSL private key file.
+  
+  ```bash
+  SSL_CONF_PRIVKEY=/path/to/cert.key
+  ```
+</ResponseField>
+
+<ResponseField name="SSL_CONF_FULLCHAIN" type="string">
+  Path to your SSL certificate file.
+  
+  ```bash
+  SSL_CONF_FULLCHAIN=/path/to/cert.crt
+  ```
+</ResponseField>
+
+## Authentication
+
+<ResponseField name="AUTHENTICATION_API_KEY" type="string" required>
+  Global API key for authenticating requests. This key is required in the `apikey` header for all API calls.
+  
+  ```bash
+  AUTHENTICATION_API_KEY=429683C4C977415CAAFCCE10F7D57E11
+  ```
+  
+  <Warning>
+    Use a strong, randomly generated key. This key provides full access to your Evolution API.
+  </Warning>
+</ResponseField>
+
+<ResponseField name="AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES" type="boolean" default="true">
+  Whether to expose instances in the fetch instances endpoint.
+  
+  ```bash
+  AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+  ```
+</ResponseField>
+
+## Database Configuration
+
+Evolution API supports PostgreSQL, MySQL, and PostgreSQL with PgBouncer.
+
+<ResponseField name="DATABASE_PROVIDER" type="enum" required>
+  Database provider to use. Options: `postgresql`, `mysql`, `psql_bouncer`
+  
+  ```bash
+  DATABASE_PROVIDER=postgresql
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_CONNECTION_URI" type="string" required>
+  Database connection string in URI format.
+  
+  **PostgreSQL:**
+  ```bash
+  DATABASE_CONNECTION_URI='postgresql://user:pass@postgres:5432/evolution_db?schema=evolution_api'
+  ```
+  
+  **MySQL:**
+  ```bash
+  DATABASE_CONNECTION_URI='mysql://user:pass@mysql:3306/evolution_db'
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_CONNECTION_CLIENT_NAME" type="string" default="evolution_exchange">
+  Client name for database connection. Used to separate multiple Evolution API installations using the same database.
+  
+  ```bash
+  DATABASE_CONNECTION_CLIENT_NAME=evolution_exchange
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_BOUNCER_CONNECTION_URI" type="string">
+  PostgreSQL connection URI with PgBouncer. Only used when `DATABASE_PROVIDER=psql_bouncer`.
+  
+  ```bash
+  DATABASE_BOUNCER_CONNECTION_URI=postgresql://user:pass@pgbouncer:5432/evolution_db?pgbouncer=true&schema=evolution_api
+  ```
+</ResponseField>
+
+### Data Storage Options
+
+Control what data is saved to the database:
+
+<ResponseField name="DATABASE_SAVE_DATA_INSTANCE" type="boolean" default="true">
+  Save instance data to database.
+  
+  ```bash
+  DATABASE_SAVE_DATA_INSTANCE=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_DATA_NEW_MESSAGE" type="boolean" default="true">
+  Save new messages to database.
+  
+  ```bash
+  DATABASE_SAVE_DATA_NEW_MESSAGE=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_MESSAGE_UPDATE" type="boolean" default="true">
+  Save message updates (delivery status, read status) to database.
+  
+  ```bash
+  DATABASE_SAVE_MESSAGE_UPDATE=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_DATA_CONTACTS" type="boolean" default="true">
+  Save contacts to database.
+  
+  ```bash
+  DATABASE_SAVE_DATA_CONTACTS=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_DATA_CHATS" type="boolean" default="true">
+  Save chats to database.
+  
+  ```bash
+  DATABASE_SAVE_DATA_CHATS=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_DATA_LABELS" type="boolean" default="true">
+  Save labels to database.
+  
+  ```bash
+  DATABASE_SAVE_DATA_LABELS=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_DATA_HISTORIC" type="boolean" default="true">
+  Save message history to database.
+  
+  ```bash
+  DATABASE_SAVE_DATA_HISTORIC=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_IS_ON_WHATSAPP" type="boolean" default="true">
+  Save WhatsApp number verification data.
+  
+  ```bash
+  DATABASE_SAVE_IS_ON_WHATSAPP=true
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_SAVE_IS_ON_WHATSAPP_DAYS" type="number" default="7">
+  Number of days to keep WhatsApp verification data.
+  
+  ```bash
+  DATABASE_SAVE_IS_ON_WHATSAPP_DAYS=7
+  ```
+</ResponseField>
+
+<ResponseField name="DATABASE_DELETE_MESSAGE" type="boolean" default="true">
+  Delete messages from database when deleted in WhatsApp.
+  
+  ```bash
+  DATABASE_DELETE_MESSAGE=true
+  ```
+</ResponseField>
+
+## Cache Configuration
+
+Evolution API supports Redis and local caching.
+
+### Redis Cache
+
+<ResponseField name="CACHE_REDIS_ENABLED" type="boolean" default="true">
+  Enable Redis caching.
+  
+  ```bash
+  CACHE_REDIS_ENABLED=true
+  ```
+</ResponseField>
+
+<ResponseField name="CACHE_REDIS_URI" type="string" required>
+  Redis connection URI.
+  
+  ```bash
+  CACHE_REDIS_URI=redis://localhost:6379/6
+  ```
+</ResponseField>
+
+<ResponseField name="CACHE_REDIS_TTL" type="number" default="604800">
+  Time-to-live for cached data in seconds (default: 7 days).
+  
+  ```bash
+  CACHE_REDIS_TTL=604800
+  ```
+</ResponseField>
+
+<ResponseField name="CACHE_REDIS_PREFIX_KEY" type="string" default="evolution">
+  Prefix for Redis keys. Used to separate data from multiple installations.
+  
+  ```bash
+  CACHE_REDIS_PREFIX_KEY=evolution
+  ```
+</ResponseField>
+
+<ResponseField name="CACHE_REDIS_SAVE_INSTANCES" type="boolean" default="false">
+  Save WhatsApp instance connection data in Redis instead of database.
+  
+  ```bash
+  CACHE_REDIS_SAVE_INSTANCES=false
+  ```
+</ResponseField>
+
+### Local Cache
+
+<ResponseField name="CACHE_LOCAL_ENABLED" type="boolean" default="false">
+  Enable local in-memory caching.
+  
+  ```bash
+  CACHE_LOCAL_ENABLED=false
+  ```
+</ResponseField>
+
+## CORS Configuration
+
+<ResponseField name="CORS_ORIGIN" type="string" default="*">
+  Allowed origins for CORS. Use `*` for all or comma-separated domains.
+  
+  ```bash
+  CORS_ORIGIN=*
+  # Or specific domains:
+  CORS_ORIGIN=yourdomain1.com,yourdomain2.com
+  ```
+</ResponseField>
+
+<ResponseField name="CORS_METHODS" type="string" default="GET,POST,PUT,DELETE">
+  Allowed HTTP methods for CORS.
+  
+  ```bash
+  CORS_METHODS=GET,POST,PUT,DELETE
+  ```
+</ResponseField>
+
+<ResponseField name="CORS_CREDENTIALS" type="boolean" default="true">
+  Allow credentials in CORS requests.
+  
+  ```bash
+  CORS_CREDENTIALS=true
+  ```
+</ResponseField>
+
+## Logging
+
+<ResponseField name="LOG_LEVEL" type="string" default="ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,WEBHOOKS,WEBSOCKET">
+  Comma-separated list of log levels to display.
+  
+  ```bash
+  LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,WEBHOOKS,WEBSOCKET
+  ```
+</ResponseField>
+
+<ResponseField name="LOG_COLOR" type="boolean" default="true">
+  Enable colored log output.
+  
+  ```bash
+  LOG_COLOR=true
+  ```
+</ResponseField>
+
+<ResponseField name="LOG_BAILEYS" type="string" default="error">
+  Baileys library log level. Options: `fatal`, `error`, `warn`, `info`, `debug`, `trace`
+  
+  ```bash
+  LOG_BAILEYS=error
+  ```
+</ResponseField>
+
+## WhatsApp Configuration
+
+<ResponseField name="CONFIG_SESSION_PHONE_CLIENT" type="string" default="Evolution API">
+  Name displayed on the smartphone when connecting.
+  
+  ```bash
+  CONFIG_SESSION_PHONE_CLIENT=Evolution API
+  ```
+</ResponseField>
+
+<ResponseField name="CONFIG_SESSION_PHONE_NAME" type="string" default="Chrome">
+  Browser name displayed. Options: `Chrome`, `Firefox`, `Edge`, `Opera`, `Safari`
+  
+  ```bash
+  CONFIG_SESSION_PHONE_NAME=Chrome
+  ```
+</ResponseField>
+
+<ResponseField name="QRCODE_LIMIT" type="number" default="30">
+  Maximum number of QR code generation attempts.
+  
+  ```bash
+  QRCODE_LIMIT=30
+  ```
+</ResponseField>
+
+<ResponseField name="QRCODE_COLOR" type="string" default="#175197">
+  QR code color in hex format.
+  
+  ```bash
+  QRCODE_COLOR='#175197'
+  ```
+</ResponseField>
+
+## Storage Configuration
+
+### Amazon S3 / MinIO
+
+<ResponseField name="S3_ENABLED" type="boolean" default="false">
+  Enable S3-compatible storage for media files.
+  
+  ```bash
+  S3_ENABLED=false
+  ```
+</ResponseField>
+
+<ResponseField name="S3_ACCESS_KEY" type="string">
+  S3 access key ID.
+  
+  ```bash
+  S3_ACCESS_KEY=your_access_key
+  ```
+</ResponseField>
+
+<ResponseField name="S3_SECRET_KEY" type="string">
+  S3 secret access key.
+  
+  ```bash
+  S3_SECRET_KEY=your_secret_key
+  ```
+</ResponseField>
+
+<ResponseField name="S3_BUCKET" type="string" default="evolution">
+  S3 bucket name.
+  
+  ```bash
+  S3_BUCKET=evolution
+  ```
+</ResponseField>
+
+<ResponseField name="S3_PORT" type="number" default="443">
+  S3 endpoint port.
+  
+  ```bash
+  S3_PORT=443
+  ```
+</ResponseField>
+
+<ResponseField name="S3_ENDPOINT" type="string" default="s3.domain.com">
+  S3 endpoint URL.
+  
+  ```bash
+  S3_ENDPOINT=s3.domain.com
+  ```
+</ResponseField>
+
+<ResponseField name="S3_REGION" type="string" default="eu-west-3">
+  S3 region.
+  
+  ```bash
+  S3_REGION=eu-west-3
+  ```
+</ResponseField>
+
+<ResponseField name="S3_USE_SSL" type="boolean" default="true">
+  Use SSL for S3 connections.
+  
+  ```bash
+  S3_USE_SSL=true
+  ```
+</ResponseField>
+
+## Webhook Configuration
+
+<ResponseField name="WEBHOOK_GLOBAL_ENABLED" type="boolean" default="false">
+  Enable global webhooks for all instances.
+  
+  ```bash
+  WEBHOOK_GLOBAL_ENABLED=false
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_GLOBAL_URL" type="string">
+  Global webhook URL that receives events from all instances.
+  
+  ```bash
+  WEBHOOK_GLOBAL_URL='https://your-webhook-endpoint.com'
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS" type="boolean" default="false">
+  Send each event type to a separate webhook URL.
+  
+  ```bash
+  WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+  ```
+</ResponseField>
+
+### Webhook Retry Configuration
+
+<ResponseField name="WEBHOOK_REQUEST_TIMEOUT_MS" type="number" default="60000">
+  Webhook request timeout in milliseconds.
+  
+  ```bash
+  WEBHOOK_REQUEST_TIMEOUT_MS=60000
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_RETRY_MAX_ATTEMPTS" type="number" default="10">
+  Maximum number of retry attempts for failed webhooks.
+  
+  ```bash
+  WEBHOOK_RETRY_MAX_ATTEMPTS=10
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_RETRY_INITIAL_DELAY_SECONDS" type="number" default="5">
+  Initial delay before first retry in seconds.
+  
+  ```bash
+  WEBHOOK_RETRY_INITIAL_DELAY_SECONDS=5
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_RETRY_USE_EXPONENTIAL_BACKOFF" type="boolean" default="true">
+  Use exponential backoff for retries.
+  
+  ```bash
+  WEBHOOK_RETRY_USE_EXPONENTIAL_BACKOFF=true
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_RETRY_MAX_DELAY_SECONDS" type="number" default="300">
+  Maximum delay between retries in seconds.
+  
+  ```bash
+  WEBHOOK_RETRY_MAX_DELAY_SECONDS=300
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_RETRY_JITTER_FACTOR" type="number" default="0.2">
+  Random jitter factor for retry delays (0.0 to 1.0).
+  
+  ```bash
+  WEBHOOK_RETRY_JITTER_FACTOR=0.2
+  ```
+</ResponseField>
+
+<ResponseField name="WEBHOOK_RETRY_NON_RETRYABLE_STATUS_CODES" type="string" default="400,401,403,404,422">
+  HTTP status codes that should not trigger retries.
+  
+  ```bash
+  WEBHOOK_RETRY_NON_RETRYABLE_STATUS_CODES=400,401,403,404,422
+  ```
+</ResponseField>
+
+## Event Integration
+
+### RabbitMQ
+
+<ResponseField name="RABBITMQ_ENABLED" type="boolean" default="false">
+  Enable RabbitMQ event integration.
+  
+  ```bash
+  RABBITMQ_ENABLED=false
+  ```
+</ResponseField>
+
+<ResponseField name="RABBITMQ_URI" type="string" default="amqp://localhost">
+  RabbitMQ connection URI.
+  
+  ```bash
+  RABBITMQ_URI=amqp://localhost
+  ```
+</ResponseField>
+
+<ResponseField name="RABBITMQ_EXCHANGE_NAME" type="string" default="evolution">
+  RabbitMQ exchange name.
+  
+  ```bash
+  RABBITMQ_EXCHANGE_NAME=evolution
+  ```
+</ResponseField>
+
+<ResponseField name="RABBITMQ_GLOBAL_ENABLED" type="boolean" default="false">
+  Send events from all instances to the same queue.
+  
+  ```bash
+  RABBITMQ_GLOBAL_ENABLED=false
+  ```
+</ResponseField>
+
+### SQS
+
+<ResponseField name="SQS_ENABLED" type="boolean" default="false">
+  Enable Amazon SQS event integration.
+  
+  ```bash
+  SQS_ENABLED=false
+  ```
+</ResponseField>
+
+<ResponseField name="SQS_ACCESS_KEY_ID" type="string">
+  AWS access key ID for SQS.
+  
+  ```bash
+  SQS_ACCESS_KEY_ID=your_access_key
+  ```
+</ResponseField>
+
+<ResponseField name="SQS_SECRET_ACCESS_KEY" type="string">
+  AWS secret access key for SQS.
+  
+  ```bash
+  SQS_SECRET_ACCESS_KEY=your_secret_key
+  ```
+</ResponseField>
+
+<ResponseField name="SQS_ACCOUNT_ID" type="string">
+  AWS account ID.
+  
+  ```bash
+  SQS_ACCOUNT_ID=123456789012
+  ```
+</ResponseField>
+
+<ResponseField name="SQS_REGION" type="string">
+  AWS region for SQS.
+  
+  ```bash
+  SQS_REGION=us-east-1
+  ```
+</ResponseField>
+
+### WebSocket
+
+<ResponseField name="WEBSOCKET_ENABLED" type="boolean" default="false">
+  Enable WebSocket event streaming.
+  
+  ```bash
+  WEBSOCKET_ENABLED=false
+  ```
+</ResponseField>
+
+<ResponseField name="WEBSOCKET_GLOBAL_EVENTS" type="boolean" default="false">
+  Stream events from all instances.
+  
+  ```bash
+  WEBSOCKET_GLOBAL_EVENTS=false
+  ```
+</ResponseField>
+
+<ResponseField name="WEBSOCKET_ALLOWED_HOSTS" type="string" default="127.0.0.1,::1,::ffff:127.0.0.1">
+  Comma-separated list of allowed hosts for WebSocket connections.
+  
+  ```bash
+  WEBSOCKET_ALLOWED_HOSTS=127.0.0.1,::1,::ffff:127.0.0.1
+  ```
+</ResponseField>
+
+## Monitoring
+
+### Prometheus Metrics
+
+<ResponseField name="PROMETHEUS_METRICS" type="boolean" default="false">
+  Enable Prometheus metrics endpoint.
+  
+  ```bash
+  PROMETHEUS_METRICS=false
+  ```
+</ResponseField>
+
+<ResponseField name="METRICS_AUTH_REQUIRED" type="boolean" default="true">
+  Require authentication for metrics endpoint.
+  
+  ```bash
+  METRICS_AUTH_REQUIRED=true
+  ```
+</ResponseField>
+
+<ResponseField name="METRICS_USER" type="string" default="prometheus">
+  Username for metrics endpoint authentication.
+  
+  ```bash
+  METRICS_USER=prometheus
+  ```
+</ResponseField>
+
+<ResponseField name="METRICS_PASSWORD" type="string" default="secure_random_password_here">
+  Password for metrics endpoint authentication.
+  
+  ```bash
+  METRICS_PASSWORD=secure_random_password_here
+  ```
+</ResponseField>
+
+<ResponseField name="METRICS_ALLOWED_IPS" type="string" default="127.0.0.1,10.0.0.100,192.168.1.50">
+  Comma-separated list of allowed IP addresses for metrics endpoint.
+  
+  ```bash
+  METRICS_ALLOWED_IPS=127.0.0.1,10.0.0.100,192.168.1.50
+  ```
+</ResponseField>
+
+### Telemetry
+
+<ResponseField name="TELEMETRY_ENABLED" type="boolean" default="true">
+  Enable anonymous usage telemetry.
+  
+  ```bash
+  TELEMETRY_ENABLED=true
+  ```
+</ResponseField>
+
+<ResponseField name="SENTRY_DSN" type="string">
+  Sentry DSN for error tracking.
+  
+  ```bash
+  SENTRY_DSN=your_sentry_dsn
+  ```
+</ResponseField>
+
+## Proxy Configuration
+
+<ResponseField name="PROXY_HOST" type="string">
+  Global proxy host.
+  
+  ```bash
+  PROXY_HOST=proxy.example.com
+  ```
+</ResponseField>
+
+<ResponseField name="PROXY_PORT" type="string">
+  Global proxy port.
+  
+  ```bash
+  PROXY_PORT=8080
+  ```
+</ResponseField>
+
+<ResponseField name="PROXY_PROTOCOL" type="string">
+  Global proxy protocol (`http` or `https`).
+  
+  ```bash
+  PROXY_PROTOCOL=http
+  ```
+</ResponseField>
+
+<ResponseField name="PROXY_USERNAME" type="string">
+  Global proxy username.
+  
+  ```bash
+  PROXY_USERNAME=proxy_user
+  ```
+</ResponseField>
+
+<ResponseField name="PROXY_PASSWORD" type="string">
+  Global proxy password.
+  
+  ```bash
+  PROXY_PASSWORD=proxy_pass
+  ```
+</ResponseField>
+
+## Instance Management
+
+<ResponseField name="DEL_INSTANCE" type="string" default="false">
+  Delete disconnected instances after specified time (in minutes) or set to `false` to disable.
+  
+  ```bash
+  DEL_INSTANCE=false
+  # Or delete after 5 minutes:
+  DEL_INSTANCE=5
+  ```
+</ResponseField>
+
+<ResponseField name="EVENT_EMITTER_MAX_LISTENERS" type="number" default="50">
+  Maximum number of event listeners per instance.
+  
+  ```bash
+  EVENT_EMITTER_MAX_LISTENERS=50
+  ```
+</ResponseField>
+
+<ResponseField name="LANGUAGE" type="string" default="en">
+  API response language. Options: `en`, `pt`, `es`
+  
+  ```bash
+  LANGUAGE=en
+  ```
+</ResponseField>
+
+## Example Configurations
+
+### Minimal Configuration
+
+```bash .env
+SERVER_URL=http://localhost:8080
+AUTHENTICATION_API_KEY=your_secure_api_key_here
+DATABASE_PROVIDER=postgresql
+DATABASE_CONNECTION_URI='postgresql://user:pass@localhost:5432/evolution_db?schema=evolution_api'
+CACHE_REDIS_ENABLED=false
+```
+
+### Production Configuration
+
+```bash .env
+# Server
+SERVER_URL=https://api.yourdomain.com
+SERVER_TYPE=https
+SERVER_PORT=8080
+AUTHENTICATION_API_KEY=your_secure_random_api_key
+
+# Database
+DATABASE_PROVIDER=postgresql
+DATABASE_CONNECTION_URI='postgresql://evolution:secure_pass@postgres:5432/evolution_db?schema=evolution_api'
+DATABASE_SAVE_DATA_INSTANCE=true
+DATABASE_SAVE_DATA_NEW_MESSAGE=true
+DATABASE_SAVE_MESSAGE_UPDATE=true
+
+# Cache
+CACHE_REDIS_ENABLED=true
+CACHE_REDIS_URI=redis://redis:6379/6
+CACHE_REDIS_PREFIX_KEY=evolution_prod
+
+# Storage
+S3_ENABLED=true
+S3_BUCKET=evolution-production
+S3_ACCESS_KEY=your_s3_access_key
+S3_SECRET_KEY=your_s3_secret_key
+S3_REGION=us-east-1
+
+# Logging
+LOG_LEVEL=ERROR,WARN,INFO
+LOG_COLOR=false
+
+# Security
+CORS_ORIGIN=yourdomain.com
+CORS_CREDENTIALS=true
+
+# Monitoring
+PROMETHEUS_METRICS=true
+METRICS_AUTH_REQUIRED=true
+METRICS_USER=prometheus
+METRICS_PASSWORD=secure_metrics_password
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/deployment/database">
+    Configure your database for Evolution API
+  </Card>
+  
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy Evolution API with Docker Compose
+  </Card>
+</CardGroup>

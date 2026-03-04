@@ -1,0 +1,953 @@
+---
+title: 'Multi-Tenant Architecture'
+description: 'Build secure multi-tenant WhatsApp applications with complete data isolation and per-tenant instances'
+---
+
+## Overview
+
+Evolution API is designed from the ground up for **multi-tenancy**, allowing you to serve multiple customers, departments, or users from a single API installation while maintaining complete data isolation.
+
+Key multi-tenant features:
+
+- **Instance-based isolation** - Each tenant gets their own WhatsApp instance
+- **Database-level separation** - All queries are scoped by instance ID
+- **Per-tenant authentication** - Unique API tokens per instance
+- **Client name separation** - Logical grouping for multiple API deployments
+- **Resource isolation** - Memory, connections, and storage per tenant
+
+<Info>
+  Think of Evolution API as a "WhatsApp as a Service" platform. Each tenant operates in complete isolation with their own WhatsApp connection, data, and configuration.
+</Info>
+
+## Multi-Tenant Architecture
+
+### Tenant = Instance
+
+In Evolution API, **one tenant = one instance**. Each customer, department, or user should have their own instance:
+
+```
+SaaS Application
+├── Customer A → Instance: customer-a-prod
+├── Customer B → Instance: customer-b-prod  
+├── Customer C → Instance: customer-c-prod
+└── Customer D → Instance: customer-d-prod
+```
+
+Each instance maintains:
+- Separate WhatsApp connection
+- Isolated message history
+- Independent contacts and chats
+- Custom webhook configurations
+- Unique authentication token
+
+### Database Isolation
+
+Evolution API ensures complete data isolation at the database level. Every table includes an `instanceId` foreign key:
+
+```sql
+-- Messages table
+CREATE TABLE "Message" (
+  "id" TEXT PRIMARY KEY,
+  "instanceId" TEXT NOT NULL,
+  "key_remoteJid" TEXT,
+  "message" TEXT,
+  "messageTimestamp" INTEGER,
+  FOREIGN KEY ("instanceId") REFERENCES "Instance"("id")
+);
+
+-- Contacts table  
+CREATE TABLE "Contact" (
+  "id" TEXT PRIMARY KEY,
+  "instanceId" TEXT NOT NULL,
+  "pushName" TEXT,
+  "profilePicUrl" TEXT,
+  FOREIGN KEY ("instanceId") REFERENCES "Instance"("id")
+);
+
+-- Chats table
+CREATE TABLE "Chat" (
+  "id" TEXT PRIMARY KEY,
+  "instanceId" TEXT NOT NULL,
+  "name" TEXT,
+  "unreadCount" INTEGER,
+  FOREIGN KEY ("instanceId") REFERENCES "Instance"("id")
+);
+```
+
+All queries are automatically scoped:
+
+```typescript
+// Get messages for specific tenant only
+const messages = await prismaRepository.message.findMany({
+  where: { 
+    instanceId: instance.id,  // Always filtered by instance
+    key_remoteJid: remoteJid 
+  }
+});
+
+// Get contacts for specific tenant
+const contacts = await prismaRepository.contact.findMany({
+  where: { instanceId: instance.id }  // Tenant isolation
+});
+```
+
+<Warning>
+  Never query without filtering by `instanceId`. All Evolution API services enforce this pattern to prevent data leakage between tenants.
+</Warning>
+
+### Memory Isolation
+
+Each instance runs in its own isolated context:
+
+```typescript
+// From src/api/services/monitor.service.ts:40
+public readonly waInstances: Record<string, any> = {};
+
+// Each instance has:
+waInstances['customer-a'] = {
+  instanceId: '550e8400-e29b-41d4-a716-446655440000',
+  instanceName: 'customer-a',
+  client: WhatsAppSocket,          // Separate connection
+  connectionStatus: { state: 'open' },
+  qrCode: { ... },
+  integration: 'WHATSAPP-BAILEYS'
+};
+
+waInstances['customer-b'] = {
+  instanceId: '660e8400-e29b-41d4-a716-446655440001',
+  instanceName: 'customer-b',
+  client: WhatsAppSocket,          // Different connection
+  connectionStatus: { state: 'open' },
+  // Completely isolated from customer-a
+};
+```
+
+## Building a Multi-Tenant SaaS
+
+### Step 1: Design Your Tenant Model
+
+Map your business model to instances:
+
+```javascript
+// Your application database
+const Customer = {
+  id: 'cust_123',
+  name: 'Acme Corp',
+  email: 'contact@acme.com',
+  whatsapp: {
+    instanceName: 'acme-corp-prod',  // Unique instance per customer
+    instanceToken: 'ABC123...',       // Store instance token
+    instanceId: '550e8400...',
+    connectionStatus: 'open'
+  }
+};
+```
+
+### Step 2: Create Instances Programmatically
+
+When a customer signs up, create their WhatsApp instance:
+
+```javascript
+class WhatsAppService {
+  async provisionTenant(customer) {
+    // Generate unique instance name
+    const instanceName = `${customer.slug}-${customer.id}`;
+    
+    // Create instance with Evolution API
+    const response = await fetch(`${EVOLUTION_API}/instance/create`, {
+      method: 'POST',
+      headers: {
+        'apikey': process.env.EVOLUTION_GLOBAL_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        instanceName,
+        qrcode: true,
+        webhook: {
+          enabled: true,
+          url: `${YOUR_APP}/webhook/${customer.id}`,
+          headers: {
+            'Authorization': `Bearer ${customer.webhookSecret}`
+          }
+        },
+        // Customer-specific settings
+        alwaysOnline: customer.plan === 'premium',
+        readMessages: false,
+        rejectCall: true
+      })
+    });
+    
+    const data = await response.json();
+    
+    // Store in your database
+    await db.customers.update(customer.id, {
+      whatsapp_instance_name: instanceName,
+      whatsapp_instance_token: data.hash,
+      whatsapp_instance_id: data.instance.instanceId,
+      whatsapp_qr_code: data.qrcode?.base64
+    });
+    
+    return data;
+  }
+}
+```
+
+### Step 3: Implement Per-Tenant Operations
+
+All WhatsApp operations use the tenant's instance token:
+
+```javascript
+class TenantWhatsAppClient {
+  constructor(customer) {
+    this.instanceName = customer.whatsapp_instance_name;
+    this.apiKey = customer.whatsapp_instance_token;
+    this.baseURL = process.env.EVOLUTION_API_URL;
+  }
+  
+  async sendMessage(number, text) {
+    // Each customer uses their own instance
+    return fetch(
+      `${this.baseURL}/message/sendText/${this.instanceName}`,
+      {
+        method: 'POST',
+        headers: {
+          'apikey': this.apiKey,  // Tenant-specific token
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ number, text })
+      }
+    );
+  }
+  
+  async getChats() {
+    // Automatically filtered to this tenant
+    return fetch(
+      `${this.baseURL}/chat/findChats/${this.instanceName}`,
+      { headers: { 'apikey': this.apiKey } }
+    );
+  }
+  
+  async getConnectionStatus() {
+    return fetch(
+      `${this.baseURL}/instance/connectionState/${this.instanceName}`,
+      { headers: { 'apikey': this.apiKey } }
+    );
+  }
+}
+
+// Usage
+const customer = await db.customers.findById(customerId);
+const whatsapp = new TenantWhatsAppClient(customer);
+
+await whatsapp.sendMessage('5511999999999', 'Hello from your SaaS!');
+```
+
+### Step 4: Handle Webhooks Per Tenant
+
+Route webhooks to the correct tenant:
+
+```javascript
+app.post('/webhook/:customerId', async (req, res) => {
+  const { customerId } = req.params;
+  const { event, instance, data } = req.body;
+  
+  // Verify tenant owns this instance
+  const customer = await db.customers.findById(customerId);
+  if (customer.whatsapp_instance_name !== instance) {
+    return res.status(403).send('Forbidden');
+  }
+  
+  // Verify webhook authentication
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token !== customer.webhookSecret) {
+    return res.status(401).send('Unauthorized');
+  }
+  
+  // Process webhook for this tenant
+  await processTenantWebhook(customer, event, data);
+  
+  res.status(200).send('OK');
+});
+
+async function processTenantWebhook(customer, event, data) {
+  switch (event) {
+    case 'MESSAGES_UPSERT':
+      // Save message to tenant's database
+      await db.messages.create({
+        customerId: customer.id,
+        messageId: data.key.id,
+        sender: data.key.remoteJid,
+        text: data.message?.conversation,
+        timestamp: new Date(data.messageTimestamp * 1000)
+      });
+      
+      // Notify tenant via their webhook
+      if (customer.userWebhookUrl) {
+        await fetch(customer.userWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'message.received', data })
+        });
+      }
+      break;
+      
+    case 'CONNECTION_UPDATE':
+      // Update tenant's connection status
+      await db.customers.update(customer.id, {
+        whatsapp_status: data.state
+      });
+      
+      // Alert customer if disconnected
+      if (data.state === 'close') {
+        await sendEmail(customer.email, 'WhatsApp Disconnected');
+      }
+      break;
+  }
+}
+```
+
+## Client Name Separation
+
+For advanced deployments, use **client names** to run multiple Evolution API installations against the same database:
+
+```bash
+# Production API Server
+DATABASE_CONNECTION_CLIENT_NAME=production
+
+# Staging API Server  
+DATABASE_CONNECTION_CLIENT_NAME=staging
+
+# EU Region API Server
+DATABASE_CONNECTION_CLIENT_NAME=eu-region
+```
+
+From `src/api/services/monitor.service.ts:340`:
+
+```typescript
+private async loadInstancesFromDatabasePostgres() {
+  const clientName = await this.configService
+    .get<Database>('DATABASE')
+    .CONNECTION.CLIENT_NAME;
+
+  // Only load instances for this client
+  const instances = await this.prismaRepository.instance.findMany({
+    where: { clientName: clientName },
+  });
+
+  await Promise.all(
+    instances.map(async (instance) => {
+      this.setInstance({ ...instance });
+    }),
+  );
+}
+```
+
+This allows you to:
+
+- **Regional separation** - Different API servers per geographic region
+- **Environment isolation** - Separate dev/staging/production instances
+- **Load balancing** - Distribute instances across multiple API servers
+- **Tenant grouping** - Group related customers logically
+
+<Note>
+  All API servers share the same database but load only their assigned instances based on `clientName`.
+</Note>
+
+## Instance Naming Strategy
+
+Choose a consistent naming convention for tenant instances:
+
+### By Customer ID
+```javascript
+const instanceName = `customer-${customer.id}`;
+// Examples: customer-123, customer-456
+```
+
+### By Customer Slug
+```javascript
+const instanceName = `${customer.slug.toLowerCase()}-prod`;
+// Examples: acme-corp-prod, tech-startup-prod
+```
+
+### By Department
+```javascript
+const instanceName = `${company.slug}-${department}`;
+// Examples: acme-sales, acme-support, acme-marketing
+```
+
+### By Phone Number
+```javascript
+const instanceName = `wa-${phoneNumber.replace(/\D/g, '')}`;
+// Examples: wa-5511999999999, wa-15551234567
+```
+
+<Tip>
+  Use lowercase alphanumeric characters and hyphens only. Instance names are permanent and cannot be changed after creation.
+</Tip>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Never Share the Global API Key">
+    The global API key grants access to **all** tenants. Keep it secret:
+    
+    ```javascript
+    // ❌ NEVER expose to customers or frontend
+    const globalKey = process.env.EVOLUTION_GLOBAL_API_KEY;
+    
+    // ✅ ONLY use in secure backend services
+    class AdminService {
+      constructor() {
+        this.globalKey = process.env.EVOLUTION_GLOBAL_API_KEY;
+        // Never send this to clients
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Use Instance Tokens for Tenant Operations">
+    Each tenant should only access their own instance:
+    
+    ```javascript
+    // Store per-tenant tokens securely
+    const tenantToken = await db.customers
+      .findById(customerId)
+      .then(c => c.whatsapp_instance_token);
+    
+    // Use tenant token for all operations
+    await fetch(`${API}/message/sendText/${instanceName}`, {
+      headers: { 'apikey': tenantToken }  // Not global key!
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Implement Rate Limiting Per Tenant">
+    Prevent one tenant from affecting others:
+    
+    ```javascript
+    const rateLimiter = require('express-rate-limit');
+    
+    app.use('/api/whatsapp/:customerId/*', rateLimiter({
+      windowMs: 60 * 1000,  // 1 minute
+      max: 100,              // 100 requests per minute per tenant
+      keyGenerator: (req) => req.params.customerId,
+      message: 'Too many requests, please try again later'
+    }));
+    ```
+  </Accordion>
+
+  <Accordion title="Validate Tenant Ownership">
+    Always verify the tenant owns the resource:
+    
+    ```javascript
+    async function sendMessage(userId, instanceName, number, text) {
+      const user = await db.users.findById(userId);
+      
+      // Verify user owns this instance
+      if (user.whatsapp_instance_name !== instanceName) {
+        throw new Error('Unauthorized: Instance does not belong to user');
+      }
+      
+      // Now safe to use
+      return evolutionAPI.sendMessage(instanceName, number, text);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Isolate Webhook Endpoints">
+    Each tenant should have their own webhook URL:
+    
+    ```javascript
+    // ✅ Good - Isolated per tenant
+    webhook: {
+      url: `https://your-app.com/webhook/${customer.id}`,
+      headers: { 'Authorization': `Bearer ${customer.webhookSecret}` }
+    }
+    
+    // ❌ Bad - Shared webhook for all tenants
+    webhook: {
+      url: 'https://your-app.com/webhook',
+      // No way to identify which tenant this is for
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Implement Tenant Quotas">
+    Enforce limits per tenant to prevent abuse:
+    
+    ```javascript
+    class TenantQuotaService {
+      async checkQuota(customerId) {
+        const customer = await db.customers.findById(customerId);
+        const usage = await db.messagesSent.count({
+          where: {
+            customerId,
+            sentAt: { gte: startOfMonth() }
+          }
+        });
+        
+        const plan = plans[customer.planId];
+        if (usage >= plan.monthlyMessages) {
+          throw new Error('Monthly message quota exceeded');
+        }
+        
+        return { remaining: plan.monthlyMessages - usage };
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Tenant Lifecycle Management
+
+### Onboarding Flow
+
+<Steps>
+  <Step title="Customer Signs Up">
+    Create customer account in your database:
+    ```javascript
+    const customer = await db.customers.create({
+      email: 'customer@example.com',
+      plan: 'starter',
+      status: 'pending_whatsapp'
+    });
+    ```
+  </Step>
+
+  <Step title="Provision WhatsApp Instance">
+    Create Evolution API instance:
+    ```javascript
+    const instance = await evolutionAPI.createInstance({
+      instanceName: `customer-${customer.id}`,
+      webhook: {
+        url: `${YOUR_APP}/webhook/${customer.id}`,
+        headers: { 'Authorization': customer.webhookSecret }
+      }
+    });
+    
+    await db.customers.update(customer.id, {
+      whatsapp_instance_name: instance.instance.instanceName,
+      whatsapp_instance_token: instance.hash,
+      whatsapp_qr_code: instance.qrcode?.base64
+    });
+    ```
+  </Step>
+
+  <Step title="Display QR Code">
+    Show QR code for customer to scan:
+    ```javascript
+    app.get('/setup/whatsapp', async (req, res) => {
+      const customer = await getAuthenticatedCustomer(req);
+      
+      res.render('setup', {
+        qrCode: customer.whatsapp_qr_code,
+        status: customer.whatsapp_status
+      });
+    });
+    ```
+  </Step>
+
+  <Step title="Monitor Connection">
+    Listen for connection webhook:
+    ```javascript
+    app.post('/webhook/:customerId', async (req, res) => {
+      if (req.body.event === 'CONNECTION_UPDATE') {
+        const { state } = req.body.data;
+        
+        await db.customers.update(req.params.customerId, {
+          whatsapp_status: state,
+          whatsapp_connected_at: state === 'open' ? new Date() : null
+        });
+        
+        // Notify customer via WebSocket
+        io.to(req.params.customerId).emit('whatsapp:connected');
+      }
+      
+      res.status(200).send('OK');
+    });
+    ```
+  </Step>
+
+  <Step title="Enable Features">
+    Once connected, enable WhatsApp features:
+    ```javascript
+    await db.customers.update(customer.id, {
+      status: 'active',
+      features: ['whatsapp_messaging', 'whatsapp_automation']
+    });
+    ```
+  </Step>
+</Steps>
+
+### Offboarding Flow
+
+<Steps>
+  <Step title="Customer Cancels">
+    Mark account for deletion:
+    ```javascript
+    await db.customers.update(customerId, {
+      status: 'cancelled',
+      cancellation_date: new Date(),
+      delete_after: addDays(new Date(), 30)
+    });
+    ```
+  </Step>
+
+  <Step title="Export Data">
+    Allow customer to download their data:
+    ```javascript
+    const messages = await db.messages.findMany({
+      where: { customerId },
+      include: { attachments: true }
+    });
+    
+    const export = {
+      messages,
+      contacts: await db.contacts.findMany({ where: { customerId } }),
+      chats: await db.chats.findMany({ where: { customerId } })
+    };
+    
+    await generateExportFile(customerId, export);
+    ```
+  </Step>
+
+  <Step title="Logout Instance">
+    Disconnect from WhatsApp:
+    ```javascript
+    await evolutionAPI.logoutInstance(customer.whatsapp_instance_name);
+    ```
+  </Step>
+
+  <Step title="Delete Instance">
+    After retention period, permanently delete:
+    ```javascript
+    if (customer.delete_after < new Date()) {
+      await evolutionAPI.deleteInstance(
+        customer.whatsapp_instance_name
+      );
+      
+      await db.customers.delete(customer.id);
+    }
+    ```
+  </Step>
+</Steps>
+
+## Monitoring and Observability
+
+### Track Instance Health Per Tenant
+
+```javascript
+class TenantHealthMonitor {
+  async checkTenantHealth(customerId) {
+    const customer = await db.customers.findById(customerId);
+    
+    // Check Evolution API connection
+    const state = await fetch(
+      `${EVOLUTION_API}/instance/connectionState/${customer.whatsapp_instance_name}`,
+      { headers: { 'apikey': customer.whatsapp_instance_token } }
+    ).then(r => r.json());
+    
+    return {
+      connected: state.instance.state === 'open',
+      instanceName: customer.whatsapp_instance_name,
+      lastChecked: new Date()
+    };
+  }
+  
+  async checkAllTenants() {
+    const customers = await db.customers.findMany({
+      where: { status: 'active' }
+    });
+    
+    const results = await Promise.all(
+      customers.map(c => this.checkTenantHealth(c.id))
+    );
+    
+    const disconnected = results.filter(r => !r.connected);
+    if (disconnected.length > 0) {
+      await alertOps(`${disconnected.length} tenants disconnected`);
+    }
+    
+    return results;
+  }
+}
+
+// Run every 5 minutes
+cron.schedule('*/5 * * * *', async () => {
+  await new TenantHealthMonitor().checkAllTenants();
+});
+```
+
+### Usage Tracking
+
+```javascript
+class UsageTracker {
+  async trackMessage(customerId, type) {
+    await db.usage.create({
+      customerId,
+      type,  // 'sent', 'received'
+      timestamp: new Date(),
+      month: format(new Date(), 'yyyy-MM')
+    });
+  }
+  
+  async getMonthlyUsage(customerId) {
+    const month = format(new Date(), 'yyyy-MM');
+    
+    return db.usage.count({
+      where: {
+        customerId,
+        month,
+        type: 'sent'
+      }
+    });
+  }
+}
+```
+
+## Scaling Considerations
+
+<AccordionGroup>
+  <Accordion title="Database Scaling">
+    As tenants grow, consider:
+    
+    - **Indexing**: Add indexes on `instanceId` and `remoteJid`
+    - **Partitioning**: Partition tables by `instanceId` or date
+    - **Read replicas**: Use replicas for read-heavy workloads
+    - **Archiving**: Move old messages to cold storage
+    
+    ```sql
+    -- Add indexes for performance
+    CREATE INDEX idx_message_instance ON "Message"("instanceId");
+    CREATE INDEX idx_message_remote_jid ON "Message"("key_remoteJid");
+    CREATE INDEX idx_message_timestamp ON "Message"("messageTimestamp");
+    ```
+  </Accordion>
+
+  <Accordion title="API Server Scaling">
+    Scale horizontally with multiple API servers:
+    
+    ```yaml
+    # docker-compose.yml
+    services:
+      evolution-api-1:
+        environment:
+          - DATABASE_CONNECTION_CLIENT_NAME=server-1
+      
+      evolution-api-2:
+        environment:
+          - DATABASE_CONNECTION_CLIENT_NAME=server-2
+      
+      nginx:
+        # Load balance across servers
+    ```
+    
+    Distribute instances across servers using `clientName`.
+  </Accordion>
+
+  <Accordion title="Redis Caching">
+    Enable Redis for session storage at scale:
+    
+    ```bash
+    CACHE_REDIS_ENABLED=true
+    CACHE_REDIS_URI=redis://redis:6379/6
+    CACHE_REDIS_SAVE_INSTANCES=true
+    ```
+    
+    This reduces database load for connection state.
+  </Accordion>
+
+  <Accordion title="Message Queue">
+    Use message queues for high-volume webhooks:
+    
+    ```javascript
+    // Webhook receiver
+    app.post('/webhook/:customerId', async (req, res) => {
+      // Acknowledge immediately
+      res.status(200).send('OK');
+      
+      // Queue for processing
+      await queue.add('webhook', {
+        customerId: req.params.customerId,
+        event: req.body.event,
+        data: req.body.data
+      });
+    });
+    
+    // Process in background workers
+    queue.process('webhook', async (job) => {
+      await processWebhook(job.data);
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Example: Complete Multi-Tenant Implementation
+
+```javascript
+// tenant-manager.js
+class TenantManager {
+  constructor(evolutionAPI, database) {
+    this.api = evolutionAPI;
+    this.db = database;
+  }
+  
+  async createTenant(customerData) {
+    // 1. Create customer record
+    const customer = await this.db.customers.create({
+      name: customerData.name,
+      email: customerData.email,
+      plan: customerData.plan || 'starter',
+      webhookSecret: crypto.randomBytes(32).toString('hex')
+    });
+    
+    // 2. Provision WhatsApp instance
+    const instanceName = `tenant-${customer.id}`;
+    const instance = await this.api.createInstance({
+      instanceName,
+      qrcode: true,
+      webhook: {
+        enabled: true,
+        url: `${process.env.APP_URL}/webhook/${customer.id}`,
+        headers: {
+          'Authorization': `Bearer ${customer.webhookSecret}`
+        },
+        events: [
+          'MESSAGES_UPSERT',
+          'CONNECTION_UPDATE',
+          'MESSAGES_UPDATE'
+        ]
+      },
+      alwaysOnline: customer.plan !== 'starter',
+      readMessages: false
+    });
+    
+    // 3. Store instance details
+    await this.db.customers.update(customer.id, {
+      whatsapp: {
+        instanceName: instance.instance.instanceName,
+        instanceId: instance.instance.instanceId,
+        token: instance.hash,
+        qrCode: instance.qrcode?.base64,
+        status: 'pending'
+      }
+    });
+    
+    return { customer, instance };
+  }
+  
+  async getTenantClient(customerId) {
+    const customer = await this.db.customers.findById(customerId);
+    return new TenantWhatsAppClient(customer, this.api);
+  }
+  
+  async deleteTenant(customerId) {
+    const customer = await this.db.customers.findById(customerId);
+    
+    // Delete Evolution API instance
+    await this.api.deleteInstance(
+      customer.whatsapp.instanceName,
+      customer.whatsapp.token
+    );
+    
+    // Delete customer data
+    await this.db.messages.deleteMany({ customerId });
+    await this.db.contacts.deleteMany({ customerId });
+    await this.db.chats.deleteMany({ customerId });
+    await this.db.customers.delete(customerId);
+  }
+}
+
+class TenantWhatsAppClient {
+  constructor(customer, api) {
+    this.customer = customer;
+    this.api = api;
+    this.instanceName = customer.whatsapp.instanceName;
+    this.token = customer.whatsapp.token;
+  }
+  
+  async sendMessage(to, text) {
+    // Check quota
+    const usage = await this.getMonthlyUsage();
+    if (usage >= this.customer.planLimits.messages) {
+      throw new Error('Monthly message quota exceeded');
+    }
+    
+    // Send via Evolution API
+    const result = await this.api.sendMessage(
+      this.instanceName,
+      this.token,
+      { number: to, text }
+    );
+    
+    // Track usage
+    await this.trackUsage('message_sent');
+    
+    return result;
+  }
+  
+  async getChats() {
+    return this.api.getChats(this.instanceName, this.token);
+  }
+  
+  async getConnectionStatus() {
+    return this.api.getConnectionState(this.instanceName, this.token);
+  }
+  
+  async trackUsage(type) {
+    await db.usage.create({
+      customerId: this.customer.id,
+      type,
+      timestamp: new Date()
+    });
+  }
+  
+  async getMonthlyUsage() {
+    const month = format(new Date(), 'yyyy-MM');
+    return db.usage.count({
+      where: {
+        customerId: this.customer.id,
+        type: 'message_sent',
+        timestamp: { gte: startOfMonth() }
+      }
+    });
+  }
+}
+
+// Usage
+const tenantManager = new TenantManager(evolutionAPI, db);
+
+// Create new tenant
+const { customer } = await tenantManager.createTenant({
+  name: 'Acme Corp',
+  email: 'admin@acme.com',
+  plan: 'business'
+});
+
+// Send message as tenant
+const client = await tenantManager.getTenantClient(customer.id);
+await client.sendMessage('5511999999999', 'Hello from Acme!');
+
+// Delete tenant
+await tenantManager.deleteTenant(customer.id);
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Instances" icon="server" href="/concepts/instances">
+    Deep dive into instance management
+  </Card>
+  
+  <Card title="Authentication" icon="key" href="/concepts/authentication">
+    Secure your multi-tenant API
+  </Card>
+  
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Configure per-tenant webhooks
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore all API endpoints
+  </Card>
+</CardGroup>

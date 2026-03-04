@@ -1,0 +1,378 @@
+---
+title: Send Status Message
+description: Send WhatsApp Status updates (Stories) via Evolution API
+---
+
+## Send Status Message
+
+Send WhatsApp Status updates (also known as Stories) to your contacts. Status messages can be text, images, videos, or audio, and disappear after 24 hours.
+
+<Warning>
+  This endpoint is currently under review. The Status/Story functionality may have limitations depending on the WhatsApp client version and account type.
+</Warning>
+
+### Endpoint
+
+```
+POST /message/sendStatus/:instanceName
+```
+
+### Path Parameters
+
+<ParamField path="instanceName" type="string" required>
+  The name of your WhatsApp instance that you created
+</ParamField>
+
+### Request Body
+
+<Note>
+  Status messages support text, image, video, and audio content. For media types, you can provide the content via URL, base64, or file upload using `multipart/form-data`.
+</Note>
+
+<ParamField body="type" type="string" required>
+  The type of status content being sent
+  
+  Options: `text`, `image`, `video`, `audio`
+</ParamField>
+
+<ParamField body="content" type="string" required>
+  The content for the status message:
+  - For `text` type: The text content to display
+  - For media types (`image`, `video`, `audio`): URL or base64-encoded media
+</ParamField>
+
+<ParamField body="caption" type="string" optional>
+  Caption text for media status updates (image, video, audio)
+</ParamField>
+
+<ParamField body="backgroundColor" type="string" optional>
+  Background color for text status messages (hex color code)
+  
+  Example: `#FF5733`, `#4CAF50`
+</ParamField>
+
+<ParamField body="font" type="integer" optional>
+  Font style for text status messages
+  
+  Range: 0 to 5 (different font styles available in WhatsApp)
+</ParamField>
+
+<ParamField body="statusJidList" type="array" optional>
+  Array of specific contact numbers (JIDs) who can view this status
+  
+  Each item should be a numeric string. Example: `["5511999999999", "5511888888888"]`
+</ParamField>
+
+<ParamField body="allContacts" type="boolean" optional>
+  Whether to share the status with all your contacts
+  
+  Default: `false` - If true, ignores `statusJidList`
+</ParamField>
+
+### Response
+
+<ResponseField name="key" type="object">
+  Message key information
+  
+  <expandable title="key properties">
+    <ResponseField name="key.remoteJid" type="string">
+      The status broadcast JID
+    </ResponseField>
+    <ResponseField name="key.fromMe" type="boolean">
+      Always true for sent messages
+    </ResponseField>
+    <ResponseField name="key.id" type="string">
+      Unique message identifier
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  The sent status message object
+</ResponseField>
+
+<ResponseField name="messageTimestamp" type="string">
+  Unix timestamp when the status was sent
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Message status
+</ResponseField>
+
+### Code Examples
+
+<CodeGroup>
+
+```bash cURL - Text Status
+curl -X POST https://your-api-url.com/message/sendStatus/my-instance \
+  -H "Content-Type: application/json" \
+  -H "apikey: YOUR_API_KEY" \
+  -d '{
+    "type": "text",
+    "content": "Hello from Evolution API!",
+    "backgroundColor": "#4CAF50",
+    "font": 1,
+    "allContacts": true
+  }'
+```
+
+```bash cURL - Image Status (URL)
+curl -X POST https://your-api-url.com/message/sendStatus/my-instance \
+  -H "Content-Type: application/json" \
+  -H "apikey: YOUR_API_KEY" \
+  -d '{
+    "type": "image",
+    "content": "https://example.com/image.jpg",
+    "caption": "Check out this amazing view!",
+    "allContacts": true
+  }'
+```
+
+```bash cURL - Image Status (File Upload)
+curl -X POST https://your-api-url.com/message/sendStatus/my-instance \
+  -H "apikey: YOUR_API_KEY" \
+  -F "type=image" \
+  -F "caption=Beautiful sunset" \
+  -F "allContacts=true" \
+  -F "file=@/path/to/image.jpg"
+```
+
+```javascript JavaScript - Text Status
+const response = await fetch('https://your-api-url.com/message/sendStatus/my-instance', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': 'YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    type: 'text',
+    content: 'Hello from Evolution API!',
+    backgroundColor: '#4CAF50',
+    font: 1,
+    allContacts: true
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```javascript JavaScript - Image Status
+const response = await fetch('https://your-api-url.com/message/sendStatus/my-instance', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': 'YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    type: 'image',
+    content: 'https://example.com/image.jpg',
+    caption: 'Check out this amazing view!',
+    allContacts: true
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python - Text Status
+import requests
+
+url = 'https://your-api-url.com/message/sendStatus/my-instance'
+headers = {
+    'Content-Type': 'application/json',
+    'apikey': 'YOUR_API_KEY'
+}
+payload = {
+    'type': 'text',
+    'content': 'Hello from Evolution API!',
+    'backgroundColor': '#4CAF50',
+    'font': 1,
+    'allContacts': True
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
+```python Python - Image Status
+import requests
+
+url = 'https://your-api-url.com/message/sendStatus/my-instance'
+headers = {
+    'apikey': 'YOUR_API_KEY'
+}
+data = {
+    'type': 'image',
+    'caption': 'Beautiful sunset',
+    'allContacts': 'true'
+}
+files = {
+    'file': open('/path/to/image.jpg', 'rb')
+}
+
+response = requests.post(url, data=data, files=files, headers=headers)
+print(response.json())
+```
+
+```php PHP - Text Status
+<?php
+$curl = curl_init();
+
+curl_setopt_array($curl, [
+  CURLOPT_URL => 'https://your-api-url.com/message/sendStatus/my-instance',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => json_encode([
+    'type' => 'text',
+    'content' => 'Hello from Evolution API!',
+    'backgroundColor' => '#4CAF50',
+    'font' => 1,
+    'allContacts' => true
+  ]),
+  CURLOPT_HTTPHEADER => [
+    'Content-Type: application/json',
+    'apikey: YOUR_API_KEY'
+  ],
+]);
+
+$response = curl_exec($curl);
+curl_close($curl);
+echo $response;
+?>
+```
+
+</CodeGroup>
+
+### Advanced Examples
+
+<Accordion title="Send text status with custom styling">
+```json
+{
+  "type": "text",
+  "content": "🎉 Exciting news! We're launching something amazing today!",
+  "backgroundColor": "#FF6B6B",
+  "font": 3,
+  "allContacts": true
+}
+```
+</Accordion>
+
+<Accordion title="Send image status to specific contacts">
+```json
+{
+  "type": "image",
+  "content": "https://example.com/announcement.jpg",
+  "caption": "New product launch! Check it out 🚀",
+  "statusJidList": ["5511999999999", "5511888888888", "5511777777777"],
+  "allContacts": false
+}
+```
+</Accordion>
+
+<Accordion title="Send video status">
+```json
+{
+  "type": "video",
+  "content": "https://example.com/promo-video.mp4",
+  "caption": "Watch our latest video!",
+  "allContacts": true
+}
+```
+</Accordion>
+
+<Accordion title="Send audio status">
+```json
+{
+  "type": "audio",
+  "content": "https://example.com/announcement.mp3",
+  "caption": "Listen to our message",
+  "allContacts": true
+}
+```
+</Accordion>
+
+## Status Type Guidelines
+
+### Text Status
+- **Content**: Plain text message
+- **Background Colors**: Use hex color codes (e.g., `#4CAF50`, `#FF5733`)
+- **Fonts**: Values from 0 to 5 represent different WhatsApp font styles
+- **Best for**: Announcements, quotes, quick updates
+
+### Image Status
+- **Formats**: JPG, PNG, GIF, WEBP
+- **Max size**: 5MB (recommended)
+- **Aspect ratio**: 9:16 (portrait) or 16:9 (landscape) works best
+- **Caption**: Optional text overlay
+
+### Video Status
+- **Formats**: MP4, 3GP, MOV
+- **Max size**: 16MB (recommended)
+- **Max duration**: 30 seconds (WhatsApp limitation)
+- **Caption**: Optional text overlay
+
+### Audio Status
+- **Formats**: MP3, OGG, WAV, AAC
+- **Max size**: 16MB
+- **Max duration**: No hard limit, but shorter is better
+- **Caption**: Optional description
+
+<Note>
+  Status messages are automatically deleted after 24 hours, following WhatsApp's standard Status/Story behavior.
+</Note>
+
+## Privacy Settings
+
+### Send to All Contacts
+Set `allContacts: true` to share your status with all contacts who have your number saved.
+
+### Send to Specific Contacts
+Provide a `statusJidList` array with specific phone numbers to limit who can view your status:
+
+```json
+{
+  "type": "text",
+  "content": "Private announcement",
+  "statusJidList": ["5511999999999", "5511888888888"],
+  "allContacts": false
+}
+```
+
+<Warning>
+  When `allContacts` is set to `true`, the `statusJidList` is ignored, and the status is shared with all your contacts.
+</Warning>
+
+## Status Best Practices
+
+1. **Keep it brief**: Status messages work best with concise content
+2. **Use quality media**: High-resolution images and videos perform better
+3. **Timing matters**: Post when your audience is most active
+4. **Add captions**: Provide context with descriptive captions
+5. **Test first**: Send to a small group before broadcasting to all contacts
+
+## Error Responses
+
+<ResponseField name="status" type="number">
+  HTTP status code
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error description
+</ResponseField>
+
+### Common Errors
+
+| Status Code | Error Message | Solution |
+|-------------|---------------|----------|
+| 400 | Bad Request - Invalid type | Use valid type: text, image, video, or audio |
+| 400 | Invalid font value | Use font value between 0 and 5 |
+| 400 | Invalid backgroundColor | Use valid hex color code (e.g., #FF5733) |
+| 401 | Unauthorized | Check your API key |
+| 404 | Not Found | Verify instance exists and is connected |
+| 500 | Internal Server Error | Check server logs or contact support |
+
+<Note>
+  Status functionality may vary based on your WhatsApp account type and the recipient's WhatsApp version. Test thoroughly before deploying to production.
+</Note>

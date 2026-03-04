@@ -1,0 +1,606 @@
+---
+title: Pusher
+description: Stream WhatsApp events to Pusher channels for real-time web and mobile app integration
+---
+
+Pusher integration enables you to stream WhatsApp events to Pusher channels for easy real-time integration with web and mobile applications without managing WebSocket infrastructure.
+
+## Configuration
+
+Configure Pusher through environment variables.
+
+### Basic Setup
+
+```bash .env
+# Enable Pusher integration
+PUSHER_ENABLED=true
+```
+
+### Global Pusher Configuration
+
+Configure a global Pusher app to receive events from all instances:
+
+```bash .env
+# Enable global Pusher
+PUSHER_GLOBAL_ENABLED=true
+
+# Pusher app credentials
+PUSHER_GLOBAL_APP_ID=your_app_id
+PUSHER_GLOBAL_KEY=your_app_key
+PUSHER_GLOBAL_SECRET=your_app_secret
+PUSHER_GLOBAL_CLUSTER=us2
+
+# Use TLS/SSL encryption
+PUSHER_GLOBAL_USE_TLS=true
+```
+
+<Note>
+Find your Pusher credentials in your [Pusher Dashboard](https://dashboard.pusher.com/).
+</Note>
+
+## Setting Up Pusher
+
+<Steps>
+  <Step title="Create Pusher Account">
+    Sign up at [pusher.com](https://pusher.com/) and create a new Channels app.
+  </Step>
+  
+  <Step title="Get Credentials">
+    Copy your app credentials from the Pusher dashboard:
+    - App ID
+    - Key
+    - Secret
+    - Cluster
+  </Step>
+  
+  <Step title="Configure Evolution API">
+    Add credentials to your `.env` file:
+    ```bash
+    PUSHER_GLOBAL_APP_ID=123456
+    PUSHER_GLOBAL_KEY=abcdef123456
+    PUSHER_GLOBAL_SECRET=secret123456
+    PUSHER_GLOBAL_CLUSTER=us2
+    ```
+  </Step>
+  
+  <Step title="Restart Evolution API">
+    Restart the API to apply changes.
+  </Step>
+</Steps>
+
+## Available Events
+
+Configure which events are sent to Pusher:
+
+<Tabs>
+  <Tab title="Instance Events">
+    ```bash .env
+    # Application lifecycle
+    PUSHER_EVENTS_APPLICATION_STARTUP=true
+    
+    # Connection events
+    PUSHER_EVENTS_QRCODE_UPDATED=true
+    PUSHER_EVENTS_CONNECTION_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Message Events">
+    ```bash .env
+    # Message events
+    PUSHER_EVENTS_MESSAGES_SET=true
+    PUSHER_EVENTS_MESSAGES_UPSERT=true
+    PUSHER_EVENTS_MESSAGES_EDITED=true
+    PUSHER_EVENTS_MESSAGES_UPDATE=true
+    PUSHER_EVENTS_MESSAGES_DELETE=true
+    PUSHER_EVENTS_SEND_MESSAGE=true
+    PUSHER_EVENTS_SEND_MESSAGE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Contact Events">
+    ```bash .env
+    # Contact events
+    PUSHER_EVENTS_CONTACTS_SET=true
+    PUSHER_EVENTS_CONTACTS_UPSERT=true
+    PUSHER_EVENTS_CONTACTS_UPDATE=true
+    PUSHER_EVENTS_PRESENCE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Chat & Group Events">
+    ```bash .env
+    # Chat events
+    PUSHER_EVENTS_CHATS_SET=true
+    PUSHER_EVENTS_CHATS_UPSERT=true
+    PUSHER_EVENTS_CHATS_UPDATE=true
+    PUSHER_EVENTS_CHATS_DELETE=true
+    
+    # Group events
+    PUSHER_EVENTS_GROUPS_UPSERT=true
+    PUSHER_EVENTS_GROUPS_UPDATE=true
+    PUSHER_EVENTS_GROUP_PARTICIPANTS_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Other Events">
+    ```bash .env
+    # Label events
+    PUSHER_EVENTS_LABELS_EDIT=true
+    PUSHER_EVENTS_LABELS_ASSOCIATION=true
+    
+    # Call events
+    PUSHER_EVENTS_CALL=true
+    
+    # Typebot integration
+    PUSHER_EVENTS_TYPEBOT_START=false
+    PUSHER_EVENTS_TYPEBOT_CHANGE_STATUS=false
+    ```
+  </Tab>
+</Tabs>
+
+## Per-Instance Configuration
+
+Configure Pusher with separate credentials for each instance:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/pusher/set/instance_name \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pusher": {
+      "enabled": true,
+      "appId": "123456",
+      "key": "your_app_key",
+      "secret": "your_app_secret",
+      "cluster": "us2",
+      "useTLS": true,
+      "events": [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "QRCODE_UPDATED",
+        "CONNECTION_UPDATE"
+      ]
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await axios.post(
+  'https://your-api.com/pusher/set/instance_name',
+  {
+    pusher: {
+      enabled: true,
+      appId: '123456',
+      key: 'your_app_key',
+      secret: 'your_app_secret',
+      cluster: 'us2',
+      useTLS: true,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'QRCODE_UPDATED',
+        'CONNECTION_UPDATE'
+      ]
+    }
+  },
+  {
+    headers: { 'apikey': 'YOUR_API_KEY' }
+  }
+);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-api.com/pusher/set/instance_name',
+    json={
+        'pusher': {
+            'enabled': True,
+            'appId': '123456',
+            'key': 'your_app_key',
+            'secret': 'your_app_secret',
+            'cluster': 'us2',
+            'useTLS': True,
+            'events': [
+                'MESSAGES_UPSERT',
+                'MESSAGES_UPDATE',
+                'QRCODE_UPDATED',
+                'CONNECTION_UPDATE'
+            ]
+        }
+    },
+    headers={'apikey': 'YOUR_API_KEY'}
+)
+```
+</CodeGroup>
+
+## Channel Structure
+
+Events are published to channels named after your instances:
+
+- **Channel**: Instance name (e.g., `my_instance`)
+- **Event**: Event name in lowercase with dots (e.g., `messages.upsert`)
+
+<Note>
+Each WhatsApp instance publishes to its own dedicated Pusher channel.
+</Note>
+
+## Subscribing to Events
+
+Connect to Pusher channels and listen for events:
+
+<CodeGroup>
+```javascript JavaScript
+import Pusher from 'pusher-js';
+
+// Initialize Pusher
+const pusher = new Pusher('YOUR_APP_KEY', {
+  cluster: 'us2',
+  encrypted: true
+});
+
+// Subscribe to instance channel
+const channel = pusher.subscribe('my_instance');
+
+// Listen for events
+channel.bind('messages.upsert', (data) => {
+  console.log('New message:', data);
+  console.log('From:', data.sender);
+  console.log('Instance:', data.instance);
+  console.log('Message data:', data.data);
+});
+
+channel.bind('qrcode.updated', (data) => {
+  console.log('QR Code updated');
+  // Note: QR code base64 is removed for Pusher to reduce size
+  console.log('QR Code data:', data.data.qrcode);
+});
+
+channel.bind('connection.update', (data) => {
+  console.log('Connection status:', data.data.state);
+  if (data.data.state === 'open') {
+    console.log('WhatsApp connected!');
+  }
+});
+
+// Connection state
+pusher.connection.bind('connected', () => {
+  console.log('Connected to Pusher');
+});
+
+pusher.connection.bind('error', (err) => {
+  console.error('Pusher error:', err);
+});
+```
+
+```html HTML
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Evolution API Pusher</title>
+  <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+</head>
+<body>
+  <h1>WhatsApp Events</h1>
+  <div id="status">Connecting...</div>
+  <div id="events"></div>
+
+  <script>
+    // Initialize Pusher
+    const pusher = new Pusher('YOUR_APP_KEY', {
+      cluster: 'us2'
+    });
+
+    // Subscribe to channel
+    const channel = pusher.subscribe('my_instance');
+
+    // Connection status
+    pusher.connection.bind('connected', () => {
+      document.getElementById('status').textContent = 'Connected';
+    });
+
+    // Listen for events
+    const eventNames = [
+      'messages.upsert',
+      'messages.update',
+      'qrcode.updated',
+      'connection.update'
+    ];
+
+    eventNames.forEach(eventName => {
+      channel.bind(eventName, (data) => {
+        console.log(`Event: ${eventName}`, data);
+        
+        const eventDiv = document.createElement('div');
+        eventDiv.innerHTML = `
+          <strong>${data.event}</strong> - ${data.instance}<br>
+          Time: ${data.date_time}
+        `;
+        document.getElementById('events').prepend(eventDiv);
+      });
+    });
+  </script>
+</body>
+</html>
+```
+
+```python Python
+import pysher
+import json
+
+def message_handler(data):
+    print(f"New message: {data}")
+
+def qrcode_handler(data):
+    print(f"QR Code updated: {data}")
+
+def connection_handler(data):
+    print(f"Connection status: {data}")
+
+# Initialize Pusher
+pusher = pysher.Pusher(
+    key='YOUR_APP_KEY',
+    cluster='us2',
+    secure=True
+)
+
+# Connect
+pusher.connection.bind('pusher:connection_established', 
+    lambda data: print('Connected to Pusher'))
+
+# Subscribe to channel
+channel = pusher.subscribe('my_instance')
+
+# Bind events
+channel.bind('messages.upsert', message_handler)
+channel.bind('qrcode.updated', qrcode_handler)
+channel.bind('connection.update', connection_handler)
+
+# Connect
+pusher.connect()
+
+# Keep alive
+while True:
+    pass
+```
+
+```swift Swift (iOS)
+import PusherSwift
+
+class WhatsAppEvents {
+    let pusher: Pusher
+    var channel: PusherChannel?
+    
+    init() {
+        pusher = Pusher(
+            key: "YOUR_APP_KEY",
+            options: PusherClientOptions(
+                host: .cluster("us2")
+            )
+        )
+        
+        subscribeToEvents()
+        pusher.connect()
+    }
+    
+    func subscribeToEvents() {
+        channel = pusher.subscribe("my_instance")
+        
+        // Message events
+        channel?.bind(eventName: "messages.upsert", eventCallback: { (event: PusherEvent) in
+            if let data = event.data,
+               let json = try? JSONSerialization.jsonObject(with: data.data(using: .utf8)!) as? [String: Any] {
+                print("New message:", json)
+            }
+        })
+        
+        // QR Code events
+        channel?.bind(eventName: "qrcode.updated", eventCallback: { (event: PusherEvent) in
+            print("QR Code updated:", event.data ?? "")
+        })
+        
+        // Connection events
+        channel?.bind(eventName: "connection.update", eventCallback: { (event: PusherEvent) in
+            print("Connection status:", event.data ?? "")
+        })
+    }
+}
+
+let events = WhatsAppEvents()
+```
+
+```kotlin Kotlin (Android)
+import com.pusher.client.Pusher
+import com.pusher.client.PusherOptions
+import com.pusher.client.channel.Channel
+import com.pusher.client.connection.ConnectionEventListener
+import com.pusher.client.connection.ConnectionState
+import com.pusher.client.connection.ConnectionStateChange
+
+class WhatsAppEvents {
+    private val pusher: Pusher
+    private var channel: Channel? = null
+    
+    init {
+        val options = PusherOptions()
+        options.setCluster("us2")
+        
+        pusher = Pusher("YOUR_APP_KEY", options)
+        
+        pusher.connection.bind(ConnectionEventListener { change ->
+            when (change.currentState) {
+                ConnectionState.CONNECTED -> {
+                    println("Connected to Pusher")
+                }
+                ConnectionState.DISCONNECTED -> {
+                    println("Disconnected from Pusher")
+                }
+                else -> {}
+            }
+        })
+        
+        subscribeToEvents()
+        pusher.connect()
+    }
+    
+    private fun subscribeToEvents() {
+        channel = pusher.subscribe("my_instance")
+        
+        channel?.bind("messages.upsert") { event ->
+            println("New message: ${event.data}")
+        }
+        
+        channel?.bind("qrcode.updated") { event ->
+            println("QR Code updated: ${event.data}")
+        }
+        
+        channel?.bind("connection.update") { event ->
+            println("Connection status: ${event.data}")
+        }
+    }
+}
+```
+</CodeGroup>
+
+## Event Payload Structure
+
+All events have a consistent structure:
+
+```json
+{
+  "event": "messages.upsert",
+  "instance": "my_instance",
+  "data": {
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0XXXXX"
+    },
+    "message": {
+      "conversation": "Hello from WhatsApp!"
+    },
+    "messageTimestamp": 1709550600,
+    "pushName": "John Doe"
+  },
+  "destination": "123456",
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "sender": "5511999999999",
+  "server_url": "https://your-evolution-api.com",
+  "apikey": "instance_api_key"
+}
+```
+
+<Note>
+For `qrcode.updated` events, the `base64` field is removed to reduce payload size. Only the QR code string is sent.
+</Note>
+
+## Payload Size Limit
+
+Pusher has a 10 KB message size limit. Evolution API:
+
+1. **Checks payload size** before sending
+2. **Removes base64 from QR codes** automatically
+3. **Logs errors** if payload exceeds 10 KB
+4. **Drops oversized messages** with error log
+
+<Warning>
+If you receive payload size errors, reduce the events enabled or filter data before sending.
+</Warning>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Presence Channels for Authentication">
+    For production apps, use Pusher's presence channels with server-side authentication:
+    ```javascript
+    const channel = pusher.subscribe('presence-my_instance');
+    ```
+  </Step>
+  
+  <Step title="Enable Only Required Events">
+    Reduce bandwidth and costs by enabling only necessary events:
+    ```bash
+    PUSHER_EVENTS_MESSAGES_UPSERT=true
+    PUSHER_EVENTS_MESSAGES_UPDATE=true
+    # Disable others
+    PUSHER_EVENTS_CONTACTS_SET=false
+    ```
+  </Step>
+  
+  <Step title="Monitor Pusher Metrics">
+    Use Pusher Dashboard to monitor:
+    - Connection count
+    - Message volume
+    - API usage
+  </Step>
+  
+  <Step title="Handle Connection States">
+    Always handle connection state changes:
+    ```javascript
+    pusher.connection.bind('state_change', (states) => {
+      console.log('State changed:', states.previous, '->', states.current);
+    });
+    ```
+  </Step>
+  
+  <Step title="Use TLS in Production">
+    Always enable TLS for production:
+    ```bash
+    PUSHER_GLOBAL_USE_TLS=true
+    ```
+  </Step>
+</Steps>
+
+## Pusher Clusters
+
+Choose a cluster close to your users for lower latency:
+
+- `mt1` - US East (N. Virginia)
+- `us2` - US East (Ohio)
+- `us3` - US West (Oregon)
+- `eu` - EU (Ireland)
+- `ap1` - Asia Pacific (Singapore)
+- `ap2` - Asia Pacific (Mumbai)
+- `ap3` - Asia Pacific (Tokyo)
+- `ap4` - Asia Pacific (Sydney)
+
+## Troubleshooting
+
+<Accordion title="Connection failed">
+  1. Verify Pusher app key is correct
+  2. Check cluster matches your Pusher app
+  3. Ensure Pusher app is not suspended
+  4. Check browser console for specific errors
+  5. Verify `PUSHER_ENABLED=true`
+</Accordion>
+
+<Accordion title="No events received">
+  1. Verify instance is connected to WhatsApp
+  2. Check that specific events are enabled in configuration
+  3. Verify you're subscribed to correct channel (instance name)
+  4. Check Evolution API logs for Pusher errors
+  5. Use Pusher Debug Console to see live events
+</Accordion>
+
+<Accordion title="Payload too large errors">
+  1. Check Evolution API logs for specific events
+  2. Disable events with large payloads (e.g., MESSAGES_SET)
+  3. Contact Pusher support for higher limits (paid plans)
+  4. Consider switching to Webhook or WebSocket for large payloads
+</Accordion>
+
+<Accordion title="High costs">
+  1. Reduce number of enabled events
+  2. Use per-instance Pusher apps instead of global
+  3. Implement client-side filtering
+  4. Consider switching to WebSocket for high-volume scenarios
+</Accordion>
+
+<Accordion title="Authentication errors (per-instance)">
+  1. Verify all Pusher credentials are correct
+  2. Check appId, key, and secret match your Pusher app
+  3. Ensure cluster is correctly set
+  4. Test credentials in Pusher Debug Console
+</Accordion>

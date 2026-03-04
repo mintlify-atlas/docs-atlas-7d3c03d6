@@ -1,0 +1,944 @@
+---
+title: 'Webhooks'
+description: 'Configure webhooks to receive real-time WhatsApp events with automatic retry and error handling'
+---
+
+## What are Webhooks?
+
+Webhooks allow Evolution API to send real-time notifications to your application when events occur in WhatsApp. Instead of polling for updates, your application receives HTTP POST requests with event data as it happens.
+
+Evolution API provides:
+
+- **40+ event types** covering messages, contacts, groups, and connection status
+- **Automatic retry logic** with exponential backoff
+- **Custom headers** for authentication
+- **Event filtering** to receive only the events you need
+- **Global and per-instance** webhook configurations
+
+<Info>
+  Webhooks are the recommended way to build responsive WhatsApp applications. They ensure zero message loss and real-time user experiences.
+</Info>
+
+## Webhook Configuration
+
+### Global Webhooks
+
+Configure webhooks for all instances via environment variables:
+
+```bash
+# Enable global webhooks
+WEBHOOK_GLOBAL_ENABLED=true
+
+# URL to receive all events
+WEBHOOK_GLOBAL_URL='https://your-app.com/webhook'
+
+# Send events to /webhook/{event-name} instead of /webhook
+WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+```
+
+<Note>
+  When `WEBHOOK_BY_EVENTS=true`, each event is sent to a unique URL:
+  - Messages: `https://your-app.com/webhook/messages-upsert`
+  - Contacts: `https://your-app.com/webhook/contacts-upsert`
+  - Connection: `https://your-app.com/webhook/connection-update`
+</Note>
+
+### Per-Instance Webhooks
+
+Configure webhooks when creating an instance:
+
+```bash
+curl -X POST https://your-api.com/instance/create \
+  -H "apikey: YOUR_GLOBAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "my-whatsapp",
+    "webhook": {
+      "enabled": true,
+      "url": "https://your-app.com/webhook/instance1",
+      "byEvents": false,
+      "base64": true,
+      "headers": {
+        "Authorization": "Bearer your-secret-token",
+        "X-Custom-Header": "custom-value"
+      }
+    }
+  }'
+```
+
+### Update Existing Instance Webhook
+
+```bash
+curl -X POST https://your-api.com/webhook/set/my-whatsapp \
+  -H "apikey: YOUR_INSTANCE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "webhook": {
+      "enabled": true,
+      "url": "https://your-app.com/webhook",
+      "events": [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "CONNECTION_UPDATE"
+      ]
+    }
+  }'
+```
+
+## Available Events
+
+Evolution API supports over 40 webhook events. Here are the most important ones:
+
+### Instance Events
+
+| Event | Description | Trigger |
+|-------|-------------|----------|
+| `APPLICATION_STARTUP` | API server started | On server boot |
+| `INSTANCE_CREATE` | New instance created | `POST /instance/create` |
+| `INSTANCE_DELETE` | Instance deleted | `DELETE /instance/delete` |
+| `QRCODE_UPDATED` | New QR code generated | During connection |
+| `CONNECTION_UPDATE` | Connection state changed | Connect/disconnect |
+| `REMOVE_INSTANCE` | Instance auto-removed | Timeout or error |
+| `LOGOUT_INSTANCE` | Instance logged out | Manual logout |
+
+### Message Events
+
+| Event | Description | Trigger |
+|-------|-------------|----------|
+| `MESSAGES_SET` | Historical messages loaded | Initial sync |
+| `MESSAGES_UPSERT` | New message received/sent | Real-time messages |
+| `MESSAGES_UPDATE` | Message status changed | Read, delivered, played |
+| `MESSAGES_EDITED` | Message content edited | Edit message |
+| `MESSAGES_DELETE` | Message deleted | Delete for everyone |
+| `SEND_MESSAGE` | Message sent successfully | After sending |
+| `SEND_MESSAGE_UPDATE` | Sent message status updated | Delivery confirmation |
+
+### Contact Events
+
+| Event | Description | Trigger |
+|-------|-------------|----------|
+| `CONTACTS_SET` | Contacts loaded | Initial sync |
+| `CONTACTS_UPSERT` | New/updated contact | Contact change |
+| `CONTACTS_UPDATE` | Contact info changed | Profile update |
+| `PRESENCE_UPDATE` | User presence changed | Online/offline/typing |
+
+### Chat Events
+
+| Event | Description | Trigger |
+|-------|-------------|----------|
+| `CHATS_SET` | Chats loaded | Initial sync |
+| `CHATS_UPSERT` | New/updated chat | New conversation |
+| `CHATS_UPDATE` | Chat metadata changed | Mute, archive, pin |
+| `CHATS_DELETE` | Chat deleted | Delete conversation |
+
+### Group Events
+
+| Event | Description | Trigger |
+|-------|-------------|----------|
+| `GROUPS_UPSERT` | New/updated group | Join/create group |
+| `GROUPS_UPDATE` | Group info changed | Name, description, icon |
+| `GROUP_PARTICIPANTS_UPDATE` | Participants changed | Add/remove members |
+
+### Other Events
+
+| Event | Description | Trigger |
+|-------|-------------|----------|
+| `LABELS_EDIT` | Label modified | Edit label |
+| `LABELS_ASSOCIATION` | Label assigned | Tag conversation |
+| `CALL` | Incoming call | Voice/video call |
+| `TYPEBOT_START` | Typebot session started | Bot triggered |
+| `TYPEBOT_CHANGE_STATUS` | Typebot status changed | Bot state change |
+| `ERRORS` | Error occurred | Any error |
+
+### Configure Events in .env
+
+```bash
+# Enable specific events
+WEBHOOK_EVENTS_QRCODE_UPDATED=true
+WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+WEBHOOK_EVENTS_MESSAGES_UPDATE=true
+WEBHOOK_EVENTS_CONNECTION_UPDATE=true
+WEBHOOK_EVENTS_CONTACTS_UPSERT=true
+WEBHOOK_EVENTS_GROUPS_UPSERT=true
+WEBHOOK_EVENTS_CALL=true
+
+# Disable unwanted events
+WEBHOOK_EVENTS_MESSAGES_SET=false
+WEBHOOK_EVENTS_CONTACTS_SET=false
+WEBHOOK_EVENTS_CHATS_SET=false
+```
+
+<Tip>
+  Disable high-volume events like `MESSAGES_SET`, `CONTACTS_SET`, and `CHATS_SET` in production to reduce webhook traffic. These events fire during initial sync and can send thousands of payloads.
+</Tip>
+
+## Webhook Payload Structure
+
+All webhook requests follow this structure:
+
+```json
+{
+  "event": "MESSAGES_UPSERT",
+  "instance": "my-whatsapp",
+  "data": {
+    // Event-specific data
+  },
+  "destination": "https://your-app.com/webhook",
+  "date_time": "2026-03-04T12:34:56.789Z",
+  "sender": "5511999999999@s.whatsapp.net",
+  "server_url": "https://your-evolution-api.com",
+  "apikey": "YOUR_INSTANCE_TOKEN"
+}
+```
+
+### Message Received Example
+
+```json
+{
+  "event": "MESSAGES_UPSERT",
+  "instance": "my-whatsapp",
+  "data": {
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0C7B4E7A2B8E6D4F1"
+    },
+    "pushName": "John Doe",
+    "message": {
+      "conversation": "Hello, I need help with my order"
+    },
+    "messageType": "conversation",
+    "messageTimestamp": 1709553296,
+    "instanceId": "550e8400-e29b-41d4-a716-446655440000",
+    "source": "ios"
+  },
+  "destination": "https://your-app.com/webhook",
+  "date_time": "2026-03-04T12:34:56.789Z",
+  "sender": "5511999999999@s.whatsapp.net",
+  "server_url": "https://evolution-api.com",
+  "apikey": "B5F6E890D1234567890ABCDEF1234567"
+}
+```
+
+### Connection Update Example
+
+```json
+{
+  "event": "CONNECTION_UPDATE",
+  "instance": "my-whatsapp",
+  "data": {
+    "state": "open",
+    "statusReason": 200
+  },
+  "destination": "https://your-app.com/webhook",
+  "date_time": "2026-03-04T12:30:00.000Z",
+  "server_url": "https://evolution-api.com",
+  "apikey": "B5F6E890D1234567890ABCDEF1234567"
+}
+```
+
+### QR Code Updated Example
+
+```json
+{
+  "event": "QRCODE_UPDATED",
+  "instance": "my-whatsapp",
+  "data": {
+    "qrcode": {
+      "base64": "data:image/png;base64,iVBORw0KGgoAAAANS...",
+      "code": "2@v3XyZ...",
+      "count": 1
+    }
+  },
+  "destination": "https://your-app.com/webhook",
+  "date_time": "2026-03-04T12:29:45.123Z",
+  "server_url": "https://evolution-api.com",
+  "apikey": "B5F6E890D1234567890ABCDEF1234567"
+}
+```
+
+## Webhook Authentication
+
+Secure your webhook endpoint using custom headers:
+
+### Bearer Token Authentication
+
+```json
+{
+  "webhook": {
+    "enabled": true,
+    "url": "https://your-app.com/webhook",
+    "headers": {
+      "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    }
+  }
+}
+```
+
+In your webhook handler:
+
+```javascript
+app.post('/webhook', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (token !== process.env.WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  // Process webhook
+  const { event, instance, data } = req.body;
+  console.log(`Received ${event} from ${instance}`);
+  
+  res.status(200).send('OK');
+});
+```
+
+### JWT Authentication
+
+Evolution API can automatically generate JWT tokens for each request:
+
+```json
+{
+  "webhook": {
+    "enabled": true,
+    "url": "https://your-app.com/webhook",
+    "headers": {
+      "jwt_key": "your-secret-signing-key"
+    }
+  }
+}
+```
+
+From the source code (`src/api/integrations/event/webhook/webhook.controller.ts:80`):
+
+```typescript
+if (webhookHeaders && 'jwt_key' in webhookHeaders) {
+  const jwtKey = webhookHeaders['jwt_key'];
+  const jwtToken = this.generateJwtToken(jwtKey);
+  webhookHeaders['Authorization'] = `Bearer ${jwtToken}`;
+  
+  delete webhookHeaders['jwt_key'];
+}
+
+private generateJwtToken(authToken: string): string {
+  const payload = {
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 600, // 10 min expiration
+    app: 'evolution',
+    action: 'webhook',
+  };
+  
+  const token = jwt.sign(payload, authToken, { algorithm: 'HS256' });
+  return token;
+}
+```
+
+Verify in your handler:
+
+```javascript
+const jwt = require('jsonwebtoken');
+
+app.post('/webhook', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    if (decoded.app !== 'evolution' || decoded.action !== 'webhook') {
+      throw new Error('Invalid token claims');
+    }
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+  
+  // Process webhook
+  res.status(200).send('OK');
+});
+```
+
+## Retry Logic and Error Handling
+
+Evolution API includes sophisticated retry logic to ensure reliable webhook delivery.
+
+### Retry Configuration
+
+```bash
+# Maximum retry attempts
+WEBHOOK_RETRY_MAX_ATTEMPTS=10
+
+# Initial delay before first retry (seconds)
+WEBHOOK_RETRY_INITIAL_DELAY_SECONDS=5
+
+# Use exponential backoff (doubles delay each attempt)
+WEBHOOK_RETRY_USE_EXPONENTIAL_BACKOFF=true
+
+# Maximum delay between retries (seconds)
+WEBHOOK_RETRY_MAX_DELAY_SECONDS=300
+
+# Random jitter factor (0.0 - 1.0)
+WEBHOOK_RETRY_JITTER_FACTOR=0.2
+
+# HTTP status codes that should NOT trigger retries
+WEBHOOK_RETRY_NON_RETRYABLE_STATUS_CODES=400,401,403,404,422
+
+# Request timeout (milliseconds)
+WEBHOOK_REQUEST_TIMEOUT_MS=60000
+```
+
+### How Retry Works
+
+From `src/api/integrations/event/webhook/webhook.controller.ts:203`:
+
+```typescript
+private async retryWebhookRequest(
+  httpService: AxiosInstance,
+  webhookData: any,
+  origin: string,
+  baseURL: string,
+  serverUrl: string,
+  maxRetries?: number,
+  delaySeconds?: number,
+): Promise<void> {
+  const maxRetryAttempts = maxRetries ?? 10;
+  const initialDelay = delaySeconds ?? 5;
+  const useExponentialBackoff = true;
+  const maxDelay = 300;
+  const jitterFactor = 0.2;
+  const nonRetryableStatusCodes = [400, 401, 403, 404, 422];
+
+  let attempts = 0;
+
+  while (attempts < maxRetryAttempts) {
+    try {
+      await httpService.post('', webhookData);
+      if (attempts > 0) {
+        this.logger.log(`Success after ${attempts + 1} attempts`);
+      }
+      return; // Success!
+    } catch (error) {
+      attempts++;
+
+      // Don't retry on client errors (4xx)
+      if (error?.response?.status && 
+          nonRetryableStatusCodes.includes(error.response.status)) {
+        this.logger.error(`Non-retryable error (${error.response.status})`);
+        throw error;
+      }
+
+      if (attempts === maxRetryAttempts) {
+        throw error; // Max attempts reached
+      }
+
+      // Calculate next delay with exponential backoff + jitter
+      let nextDelay = initialDelay;
+      if (useExponentialBackoff) {
+        nextDelay = Math.min(
+          initialDelay * Math.pow(2, attempts - 1),
+          maxDelay
+        );
+        
+        const jitter = nextDelay * jitterFactor * (Math.random() * 2 - 1);
+        nextDelay = Math.max(initialDelay, nextDelay + jitter);
+      }
+
+      this.logger.log(`Waiting ${nextDelay.toFixed(1)}s before retry`);
+      await new Promise(resolve => setTimeout(resolve, nextDelay * 1000));
+    }
+  }
+}
+```
+
+<Info>
+  With default settings, Evolution API will retry for up to **30+ minutes** before giving up:
+  - Attempt 1: Wait 5s
+  - Attempt 2: Wait 10s
+  - Attempt 3: Wait 20s
+  - ...
+  - Attempt 10: Wait 300s (5 min)
+</Info>
+
+### Error Webhooks
+
+Receive notifications when errors occur:
+
+```bash
+WEBHOOK_EVENTS_ERRORS=true
+WEBHOOK_EVENTS_ERRORS_WEBHOOK=https://your-app.com/webhook/errors
+```
+
+## Implementing a Webhook Handler
+
+<CodeGroup>
+
+```javascript Express.js
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+app.post('/webhook', async (req, res) => {
+  try {
+    const { event, instance, data, sender } = req.body;
+    
+    console.log(`[${instance}] Received ${event}`);
+    
+    switch (event) {
+      case 'MESSAGES_UPSERT':
+        await handleNewMessage(instance, data, sender);
+        break;
+        
+      case 'CONNECTION_UPDATE':
+        await handleConnectionUpdate(instance, data);
+        break;
+        
+      case 'QRCODE_UPDATED':
+        await handleQRCode(instance, data);
+        break;
+        
+      default:
+        console.log(`Unhandled event: ${event}`);
+    }
+    
+    // Always respond with 200 to acknowledge receipt
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Webhook error:', error);
+    // Still return 200 to prevent retries for processing errors
+    res.status(200).send('ERROR');
+  }
+});
+
+async function handleNewMessage(instance, data, sender) {
+  // Only process incoming messages
+  if (data.key.fromMe) return;
+  
+  const message = data.message?.conversation || 
+                  data.message?.extendedTextMessage?.text;
+  
+  console.log(`Message from ${sender}: ${message}`);
+  
+  // Process message (save to DB, trigger bot, etc.)
+  await db.messages.create({
+    instanceId: data.instanceId,
+    sender: sender,
+    text: message,
+    timestamp: new Date(data.messageTimestamp * 1000)
+  });
+}
+
+async function handleConnectionUpdate(instance, data) {
+  console.log(`${instance} connection: ${data.state}`);
+  
+  if (data.state === 'open') {
+    await db.instances.update(instance, { status: 'connected' });
+  } else if (data.state === 'close') {
+    await db.instances.update(instance, { status: 'disconnected' });
+    // Alert admin
+    await sendAlert(`Instance ${instance} disconnected`);
+  }
+}
+
+async function handleQRCode(instance, data) {
+  const { base64 } = data.qrcode;
+  
+  // Store QR code for display in UI
+  await redis.set(`qrcode:${instance}`, base64, 'EX', 300); // 5 min TTL
+  
+  // Notify user via WebSocket
+  io.to(instance).emit('qrcode', { base64 });
+}
+
+app.listen(3000, () => {
+  console.log('Webhook server listening on port 3000');
+});
+```
+
+```python FastAPI
+from fastapi import FastAPI, Request, Response
+import logging
+
+app = FastAPI()
+logger = logging.getLogger(__name__)
+
+@app.post("/webhook")
+async def webhook(request: Request):
+    try:
+        body = await request.json()
+        event = body.get('event')
+        instance = body.get('instance')
+        data = body.get('data')
+        sender = body.get('sender')
+        
+        logger.info(f"[{instance}] Received {event}")
+        
+        if event == 'MESSAGES_UPSERT':
+            await handle_new_message(instance, data, sender)
+        elif event == 'CONNECTION_UPDATE':
+            await handle_connection_update(instance, data)
+        elif event == 'QRCODE_UPDATED':
+            await handle_qrcode(instance, data)
+        else:
+            logger.warning(f"Unhandled event: {event}")
+        
+        return Response(content="OK", status_code=200)
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return Response(content="ERROR", status_code=200)
+
+async def handle_new_message(instance: str, data: dict, sender: str):
+    # Skip outgoing messages
+    if data['key'].get('fromMe'):
+        return
+    
+    message = (
+        data.get('message', {}).get('conversation') or
+        data.get('message', {}).get('extendedTextMessage', {}).get('text')
+    )
+    
+    logger.info(f"Message from {sender}: {message}")
+    
+    # Save to database
+    await db.messages.create(
+        instance_id=data['instanceId'],
+        sender=sender,
+        text=message,
+        timestamp=data['messageTimestamp']
+    )
+
+async def handle_connection_update(instance: str, data: dict):
+    state = data.get('state')
+    logger.info(f"{instance} connection: {state}")
+    
+    if state == 'open':
+        await db.instances.update(instance, status='connected')
+    elif state == 'close':
+        await db.instances.update(instance, status='disconnected')
+        await send_alert(f"Instance {instance} disconnected")
+
+async def handle_qrcode(instance: str, data: dict):
+    base64 = data['qrcode']['base64']
+    
+    # Store in Redis
+    await redis.setex(f"qrcode:{instance}", 300, base64)
+    
+    # Notify via WebSocket
+    await websocket_manager.broadcast(instance, {
+        'type': 'qrcode',
+        'base64': base64
+    })
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=3000)
+```
+
+```php Laravel
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use App\Models\Message;
+use App\Models\Instance;
+
+class WebhookController extends Controller
+{
+    public function handle(Request $request)
+    {
+        try {
+            $event = $request->input('event');
+            $instance = $request->input('instance');
+            $data = $request->input('data');
+            $sender = $request->input('sender');
+            
+            Log::info("[$instance] Received $event");
+            
+            switch ($event) {
+                case 'MESSAGES_UPSERT':
+                    $this->handleNewMessage($instance, $data, $sender);
+                    break;
+                    
+                case 'CONNECTION_UPDATE':
+                    $this->handleConnectionUpdate($instance, $data);
+                    break;
+                    
+                case 'QRCODE_UPDATED':
+                    $this->handleQRCode($instance, $data);
+                    break;
+                    
+                default:
+                    Log::warning("Unhandled event: $event");
+            }
+            
+            return response('OK', 200);
+        } catch (\Exception $e) {
+            Log::error('Webhook error: ' . $e->getMessage());
+            return response('ERROR', 200);
+        }
+    }
+    
+    private function handleNewMessage($instance, $data, $sender)
+    {
+        // Skip outgoing messages
+        if ($data['key']['fromMe'] ?? false) {
+            return;
+        }
+        
+        $message = $data['message']['conversation'] ?? 
+                   $data['message']['extendedTextMessage']['text'] ?? '';
+        
+        Log::info("Message from $sender: $message");
+        
+        // Save to database
+        Message::create([
+            'instance_id' => $data['instanceId'],
+            'sender' => $sender,
+            'text' => $message,
+            'timestamp' => $data['messageTimestamp']
+        ]);
+    }
+    
+    private function handleConnectionUpdate($instance, $data)
+    {
+        $state = $data['state'] ?? 'unknown';
+        Log::info("$instance connection: $state");
+        
+        $status = match($state) {
+            'open' => 'connected',
+            'close' => 'disconnected',
+            default => 'unknown'
+        };
+        
+        Instance::where('name', $instance)
+            ->update(['status' => $status]);
+    }
+    
+    private function handleQRCode($instance, $data)
+    {
+        $base64 = $data['qrcode']['base64'] ?? '';
+        
+        // Store in cache
+        cache(["qrcode:$instance" => $base64], now()->addMinutes(5));
+        
+        // Broadcast via Laravel Echo
+        broadcast(new \App\Events\QRCodeUpdated($instance, $base64));
+    }
+}
+```
+
+</CodeGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Return 200 OK">
+    Your webhook endpoint should return `200 OK` as quickly as possible:
+    
+    ```javascript
+    app.post('/webhook', async (req, res) => {
+      // Acknowledge immediately
+      res.status(200).send('OK');
+      
+      // Process asynchronously
+      processWebhookAsync(req.body).catch(console.error);
+    });
+    ```
+    
+    If you return an error status, Evolution API will retry the webhook, potentially causing duplicates.
+  </Accordion>
+
+  <Accordion title="Implement Idempotency">
+    Handle duplicate webhooks gracefully using message IDs:
+    
+    ```javascript
+    async function handleMessage(data) {
+      const messageId = data.key.id;
+      
+      // Check if already processed
+      const exists = await redis.get(`processed:${messageId}`);
+      if (exists) {
+        console.log('Duplicate webhook, skipping');
+        return;
+      }
+      
+      // Process message
+      await processMessage(data);
+      
+      // Mark as processed (24 hour TTL)
+      await redis.setex(`processed:${messageId}`, 86400, '1');
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Filter Events You Need">
+    Only enable events you actually use to reduce webhook traffic:
+    
+    ```json
+    {
+      "webhook": {
+        "enabled": true,
+        "url": "https://your-app.com/webhook",
+        "events": [
+          "MESSAGES_UPSERT",       // New messages only
+          "CONNECTION_UPDATE",     // Connection status
+          "MESSAGES_UPDATE"        // Read receipts
+        ]
+      }
+    }
+    ```
+    
+    Avoid enabling `MESSAGES_SET`, `CONTACTS_SET`, and `CHATS_SET` unless you need historical sync.
+  </Accordion>
+
+  <Accordion title="Use Queue for Processing">
+    For high-volume webhooks, use a queue to prevent blocking:
+    
+    ```javascript
+    const Bull = require('bull');
+    const webhookQueue = new Bull('webhooks');
+    
+    app.post('/webhook', (req, res) => {
+      // Add to queue
+      webhookQueue.add(req.body);
+      res.status(200).send('OK');
+    });
+    
+    // Process in background
+    webhookQueue.process(async (job) => {
+      const { event, instance, data } = job.data;
+      await processWebhook(event, instance, data);
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Verify Webhook Source">
+    Validate webhooks are from your Evolution API:
+    
+    ```javascript
+    app.post('/webhook', (req, res) => {
+      const serverUrl = req.body.server_url;
+      const apikey = req.body.apikey;
+      
+      // Verify server URL
+      if (serverUrl !== process.env.EVOLUTION_API_URL) {
+        return res.status(403).send('Forbidden');
+      }
+      
+      // Verify API key
+      const validKey = await verifyAPIKey(apikey, req.body.instance);
+      if (!validKey) {
+        return res.status(401).send('Unauthorized');
+      }
+      
+      // Process webhook
+      res.status(200).send('OK');
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Monitor Webhook Health">
+    Track webhook delivery and errors:
+    
+    ```javascript
+    const metrics = {
+      received: 0,
+      processed: 0,
+      errors: 0
+    };
+    
+    app.post('/webhook', async (req, res) => {
+      metrics.received++;
+      
+      try {
+        await processWebhook(req.body);
+        metrics.processed++;
+      } catch (error) {
+        metrics.errors++;
+        console.error('Webhook error:', error);
+      }
+      
+      res.status(200).send('OK');
+    });
+    
+    // Expose metrics
+    app.get('/metrics', (req, res) => {
+      res.json(metrics);
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Testing Webhooks
+
+### Using ngrok for Local Development
+
+<Steps>
+  <Step title="Install ngrok">
+    ```bash
+    # Download from https://ngrok.com
+    npm install -g ngrok
+    ```
+  </Step>
+
+  <Step title="Start Your Webhook Server">
+    ```bash
+    node webhook-server.js
+    # Listening on http://localhost:3000
+    ```
+  </Step>
+
+  <Step title="Expose with ngrok">
+    ```bash
+    ngrok http 3000
+    ```
+    
+    Copy the HTTPS URL:
+    ```
+    Forwarding  https://abc123.ngrok.io -> http://localhost:3000
+    ```
+  </Step>
+
+  <Step title="Configure Webhook">
+    ```bash
+    curl -X POST https://your-api.com/webhook/set/test-instance \
+      -H "apikey: YOUR_TOKEN" \
+      -d '{
+        "webhook": {
+          "enabled": true,
+          "url": "https://abc123.ngrok.io/webhook"
+        }
+      }'
+    ```
+  </Step>
+
+  <Step title="Test Events">
+    Send a test message to your WhatsApp and watch webhooks arrive in real-time.
+  </Step>
+</Steps>
+
+### Webhook Testing Tools
+
+- **Webhook.site** - Inspect webhook payloads without code
+- **RequestBin** - Collect and debug webhooks
+- **Postman** - Mock webhook servers for testing
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Instances" icon="server" href="/concepts/instances">
+    Learn how to create and manage instances
+  </Card>
+  
+  <Card title="Authentication" icon="key" href="/concepts/authentication">
+    Secure your API with authentication
+  </Card>
+  
+  <Card title="Multi-Tenant" icon="users" href="/concepts/multi-tenant">
+    Build multi-tenant applications
+  </Card>
+  
+  <Card title="Message Events" icon="message" href="/api/messages/send-text">
+    Explore message API endpoints
+  </Card>
+</CardGroup>

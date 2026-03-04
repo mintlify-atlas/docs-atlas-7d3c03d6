@@ -1,0 +1,244 @@
+---
+title: Introduction
+description: Evolution API is a comprehensive WhatsApp integration platform supporting multiple messaging services, chatbot platforms, and event streaming systems.
+mode: custom
+---
+
+<div className="relative overflow-hidden bg-gradient-to-br from-[#075E54] via-[#128C7E] to-[#25D366] dark:from-[#0a1f1d] dark:via-[#0d2d28] dark:to-[#0f3d33] py-20">
+  <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="lg:grid lg:grid-cols-12 lg:gap-8 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          Evolution API Documentation
+        </h1>
+        <p className="text-lg sm:text-xl text-white/90 max-w-2xl mb-8">
+          Build powerful WhatsApp integrations with multi-tenant architecture, chatbot platforms, and event streaming systems. Connect your applications to WhatsApp using Baileys or the official Business API.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a
+            href="/quickstart"
+            className="inline-flex items-center px-6 py-3 rounded-lg bg-white text-[#075E54] font-semibold hover:bg-gray-100 transition-colors"
+          >
+            Get Started
+            <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+          <a
+            href="/api/overview"
+            className="inline-flex items-center px-6 py-3 rounded-lg border-2 border-white/30 bg-white/10 text-white font-semibold hover:bg-white/20 transition-colors"
+          >
+            API Reference
+          </a>
+        </div>
+      </div>
+      <div className="hidden lg:block lg:col-span-5 mt-12 lg:mt-0">
+        <div className="relative">
+          <div className="absolute inset-0 bg-white/10 rounded-2xl blur-3xl"></div>
+          <div className="relative bg-white/5 backdrop-blur-sm rounded-2xl border border-white/20 p-6">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-[#25D366]"></div>
+                <div className="text-white/80 text-sm">Multi-tenant architecture</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-[#25D366]"></div>
+                <div className="text-white/80 text-sm">7+ chatbot integrations</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-[#25D366]"></div>
+                <div className="text-white/80 text-sm">Event streaming support</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-[#25D366]"></div>
+                <div className="text-white/80 text-sm">S3/MinIO media storage</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">Quick start</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Get your WhatsApp instance running in minutes</p>
+  
+  <Steps>
+    <Step title="Install Docker">
+      Evolution API runs best with Docker. Make sure Docker and Docker Compose are installed on your system.
+      
+      ```bash
+      docker --version
+      docker-compose --version
+      ```
+    </Step>
+    
+    <Step title="Clone and configure">
+      Clone the repository and set up your environment variables.
+      
+      ```bash
+      git clone https://github.com/EvolutionAPI/evolution-api.git
+      cd evolution-api
+      cp .env.example .env
+      ```
+      
+      Edit `.env` and set your `AUTHENTICATION_API_KEY` and database configuration.
+      
+      <Note>
+        The API key is required for all API requests. Generate a secure random string for production use.
+      </Note>
+    </Step>
+    
+    <Step title="Start the services">
+      Launch Evolution API with Docker Compose.
+      
+      ```bash
+      docker-compose up -d
+      ```
+      
+      The API will be available at `http://localhost:8080`. Check the logs with `docker-compose logs -f`.
+    </Step>
+    
+    <Step title="Create your first instance">
+      Create a WhatsApp instance using the API.
+      
+      ```bash
+      curl -X POST http://localhost:8080/instance/create \
+        -H "apikey: YOUR_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{
+          "instanceName": "my-instance",
+          "qrcode": true
+        }'
+      ```
+      
+      <Accordion title="Example response">
+        ```json
+        {
+          "instance": {
+            "instanceName": "my-instance",
+            "status": "created"
+          },
+          "qrcode": {
+            "base64": "data:image/png;base64,...",
+            "code": "1@..."
+          }
+        }
+        ```
+      </Accordion>
+      
+      Scan the QR code with WhatsApp to connect your instance.
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">Explore by topic</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Discover what you can build with Evolution API</p>
+  
+  <CardGroup cols={3}>
+    <Card title="WhatsApp integration" icon="message" href="/whatsapp/baileys">
+      Connect using Baileys (free) or the official WhatsApp Business API.
+    </Card>
+    <Card title="Chatbot platforms" icon="robot" href="/integrations/typebot">
+      Integrate with Typebot, Chatwoot, Dify, OpenAI, and more.
+    </Card>
+    <Card title="Event streaming" icon="bolt" href="/events/webhooks">
+      Stream events via webhooks, RabbitMQ, Kafka, SQS, or WebSocket.
+    </Card>
+    <Card title="Instance management" icon="server" href="/concepts/instances">
+      Create and manage multi-tenant WhatsApp instances with isolation.
+    </Card>
+    <Card title="Media storage" icon="database" href="/storage/s3">
+      Store media files in Amazon S3 or MinIO with automatic management.
+    </Card>
+    <Card title="Deployment" icon="docker" href="/deployment/docker">
+      Deploy with Docker, configure databases, and scale your infrastructure.
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">Key features</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">Everything you need to integrate WhatsApp into your applications</p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="border border-gray-200 dark:border-[#27272a] rounded-lg p-6 bg-white dark:bg-[#1a1d27] hover:border-[#25D366] dark:hover:border-[#25D366] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#25D366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Multi-provider support</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Choose between Baileys (free, WhatsApp Web-based) or the official WhatsApp Business API for your use case.</p>
+        </div>
+      </div>
+    </div>
+    
+    <div className="border border-gray-200 dark:border-[#27272a] rounded-lg p-6 bg-white dark:bg-[#1a1d27] hover:border-[#25D366] dark:hover:border-[#25D366] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#25D366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Multi-tenant architecture</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Complete data isolation between instances with per-tenant authentication and database separation.</p>
+        </div>
+      </div>
+    </div>
+    
+    <div className="border border-gray-200 dark:border-[#27272a] rounded-lg p-6 bg-white dark:bg-[#1a1d27] hover:border-[#25D366] dark:hover:border-[#25D366] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#25D366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Rich integrations</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Connect with Typebot, Chatwoot, Dify, OpenAI, Flowise, N8N, and more chatbot and AI platforms.</p>
+        </div>
+      </div>
+    </div>
+    
+    <div className="border border-gray-200 dark:border-[#27272a] rounded-lg p-6 bg-white dark:bg-[#1a1d27] hover:border-[#25D366] dark:hover:border-[#25D366] transition-colors">
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#25D366]/10 flex items-center justify-center">
+          <svg className="w-6 h-6 text-[#25D366]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Event streaming</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Receive real-time events via webhooks, RabbitMQ, Apache Kafka, Amazon SQS, WebSocket, or Pusher.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="border border-gray-200 dark:border-[#27272a] rounded-2xl p-8 bg-gradient-to-br from-[#25D366]/5 to-[#128C7E]/5 dark:from-[#25D366]/10 dark:to-[#128C7E]/10">
+    <div className="max-w-3xl mx-auto text-center">
+      <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Ready to get started?</h2>
+      <p className="text-lg text-gray-600 dark:text-gray-400 mb-8">
+        Follow our quickstart guide to create your first WhatsApp instance in minutes.
+      </p>
+      <a
+        href="/quickstart"
+        className="inline-flex items-center px-6 py-3 rounded-lg bg-[#25D366] text-white font-semibold hover:bg-[#128C7E] transition-colors"
+      >
+        Get Started
+        <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</div>

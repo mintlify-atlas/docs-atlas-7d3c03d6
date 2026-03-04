@@ -1,0 +1,187 @@
+---
+title: 'Archive Chat'
+api: 'POST /chat/archiveChat/:instanceName'
+description: 'Archive or unarchive a WhatsApp chat.'
+---
+
+## Overview
+
+You can archive or unarchive chats in your WhatsApp instance. Archiving a chat removes it from your main chat list but preserves all messages and history.
+
+<Note>
+  Archiving a chat doesn't delete any messages. You can unarchive it at any time to restore it to your main chat list.
+</Note>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+<ParamField body="archive" type="boolean" required>
+  Set to `true` to archive the chat, or `false` to unarchive it.
+</ParamField>
+
+<ParamField body="chat" type="string">
+  The remote JID of the chat to archive. Required if `lastMessage` is not provided.
+</ParamField>
+
+<ParamField body="lastMessage" type="object">
+  Information about the last message in the chat. Can be used instead of `chat` parameter.
+  
+  <Expandable title="properties">
+    <ParamField body="lastMessage.key" type="object" required>
+      Message key object.
+      
+      <Expandable title="properties">
+        <ParamField body="lastMessage.key.id" type="string" required>
+          Message ID.
+        </ParamField>
+        
+        <ParamField body="lastMessage.key.fromMe" type="boolean" required>
+          Whether the message was sent by you.
+        </ParamField>
+        
+        <ParamField body="lastMessage.key.remoteJid" type="string" required>
+          Remote JID of the chat.
+        </ParamField>
+      </Expandable>
+    </ParamField>
+    
+    <ParamField body="lastMessage.messageTimestamp" type="number">
+      Unix timestamp of the message.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="archived" type="boolean">
+  Confirmation of the archive status.
+</ResponseField>
+
+<ResponseField name="chat" type="string">
+  The remote JID of the archived/unarchived chat.
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL (Simple)
+curl --request POST \
+  --url https://api.example.com/chat/archiveChat/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "archive": true,
+    "chat": "5511999999999@s.whatsapp.net"
+  }'
+```
+
+```bash cURL (With Last Message)
+curl --request POST \
+  --url https://api.example.com/chat/archiveChat/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "archive": true,
+    "lastMessage": {
+      "key": {
+        "id": "3EB0123456789ABCDEF",
+        "fromMe": false,
+        "remoteJid": "5511999999999@s.whatsapp.net"
+      },
+      "messageTimestamp": 1709553600
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.example.com/chat/archiveChat/my-instance',
+  {
+    method: 'POST',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      archive: true,
+      chat: '5511999999999@s.whatsapp.net'
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/chat/archiveChat/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'archive': True,
+        'chat': '5511999999999@s.whatsapp.net'
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Success
+{
+  "archived": true,
+  "chat": "5511999999999@s.whatsapp.net"
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid request",
+  "message": "Either 'chat' or 'lastMessage' must be provided"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized",
+  "message": "Invalid API key"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Chat not found",
+  "message": "The specified chat does not exist"
+}
+```
+
+</ResponseExample>
+
+## Usage Notes
+
+<Tip>
+  To unarchive a chat, send the same request with `archive: false`.
+</Tip>
+
+<Info>
+  When archiving a chat, new messages will still be received, and the chat may be automatically unarchived if a new message arrives (depending on WhatsApp settings).
+</Info>

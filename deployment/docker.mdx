@@ -1,0 +1,619 @@
+---
+title: Docker Deployment
+description: Deploy Evolution API using Docker and Docker Compose
+---
+
+Evolution API provides official Docker images for easy deployment and scaling. This guide covers single-container deployment and complete multi-service setups using Docker Compose.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- Docker Engine 20.10 or later
+- Docker Compose 2.0 or later (optional, for multi-service deployment)
+- At least 2GB RAM available
+- Ports 8080 (API), 5432 (PostgreSQL), and 6379 (Redis) available
+
+## Quick Start with Docker
+
+### Single Container Deployment
+
+For testing or development, you can run Evolution API in a single container:
+
+```bash
+docker run -d \
+  --name evolution_api \
+  -p 8080:8080 \
+  -e SERVER_URL=http://localhost:8080 \
+  -e AUTHENTICATION_API_KEY=your_api_key_here \
+  evoapicloud/evolution-api:latest
+```
+
+Access the API at `http://localhost:8080`.
+
+<Warning>
+  Single container deployment without external database and Redis is only suitable for testing. Production deployments should use Docker Compose with persistent storage.
+</Warning>
+
+## Docker Compose Deployment
+
+The recommended way to deploy Evolution API is using Docker Compose, which sets up all required services.
+
+### Complete Setup
+
+<Steps>
+  <Step title="Create project directory">
+    Create a directory for your Evolution API deployment:
+    
+    ```bash
+    mkdir evolution-api
+    cd evolution-api
+    ```
+  </Step>
+  
+  <Step title="Create docker-compose.yaml">
+    Create a `docker-compose.yaml` file with the following content:
+    
+    ```yaml docker-compose.yaml
+    version: "3.8"
+    
+    services:
+      api:
+        container_name: evolution_api
+        image: evoapicloud/evolution-api:latest
+        restart: always
+        depends_on:
+          - redis
+          - evolution-postgres
+        ports:
+          - "127.0.0.1:8080:8080"
+        volumes:
+          - evolution_instances:/evolution/instances
+        networks:
+          - evolution-net
+        env_file:
+          - .env
+        expose:
+          - "8080"
+    
+      frontend:
+        container_name: evolution_frontend
+        image: evoapicloud/evolution-manager:latest
+        restart: always
+        ports:
+          - "3000:80"
+        networks:
+          - evolution-net
+    
+      redis:
+        container_name: evolution_redis
+        image: redis:latest
+        restart: always
+        command: >
+          redis-server --port 6379 --appendonly yes
+        volumes:
+          - evolution_redis:/data
+        networks:
+          evolution-net:
+            aliases:
+              - evolution-redis
+        expose:
+          - "6379"
+    
+      evolution-postgres:
+        container_name: evolution_postgres
+        image: postgres:15
+        restart: always
+        env_file:
+          - .env
+        command:
+          - postgres
+          - -c
+          - max_connections=1000
+          - -c
+          - listen_addresses=*
+        environment:
+          - POSTGRES_DB=${POSTGRES_DATABASE}
+          - POSTGRES_USER=${POSTGRES_USERNAME}
+          - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+        volumes:
+          - postgres_data:/var/lib/postgresql/data
+        networks:
+          - evolution-net
+        expose:
+          - "5432"
+    
+    volumes:
+      evolution_instances:
+      evolution_redis:
+      postgres_data:
+    
+    networks:
+      evolution-net:
+        name: evolution-net
+        driver: bridge
+    ```
+  </Step>
+  
+  <Step title="Create environment file">
+    Create a `.env` file with your configuration:
+    
+    ```bash .env
+    # Server Configuration
+    SERVER_URL=http://localhost:8080
+    AUTHENTICATION_API_KEY=your_secure_api_key_here
+    
+    # Database Configuration
+    DATABASE_PROVIDER=postgresql
+    DATABASE_CONNECTION_URI=postgresql://evolution:your_password@evolution-postgres:5432/evolution_db?schema=evolution_api
+    
+    POSTGRES_DATABASE=evolution_db
+    POSTGRES_USERNAME=evolution
+    POSTGRES_PASSWORD=your_secure_password_here
+    
+    # Redis Cache
+    CACHE_REDIS_ENABLED=true
+    CACHE_REDIS_URI=redis://evolution-redis:6379/6
+    CACHE_REDIS_PREFIX_KEY=evolution
+    
+    # Optional: Enable specific features
+    WEBHOOK_GLOBAL_ENABLED=false
+    RABBITMQ_ENABLED=false
+    SQS_ENABLED=false
+    ```
+  </Step>
+  
+  <Step title="Start services">
+    Start all services using Docker Compose:
+    
+    ```bash
+    docker-compose up -d
+    ```
+    
+    This will start:
+    - Evolution API (port 8080)
+    - Evolution Manager UI (port 3000)
+    - PostgreSQL database (internal)
+    - Redis cache (internal)
+  </Step>
+  
+  <Step title="Verify deployment">
+    Check that all containers are running:
+    
+    ```bash
+    docker-compose ps
+    ```
+    
+    You should see all services with status "Up".
+  </Step>
+  
+  <Step title="Access the application">
+    - API: `http://localhost:8080`
+    - Manager UI: `http://localhost:3000`
+    
+    Test the API:
+    
+    ```bash
+    curl -X GET http://localhost:8080/instance/fetchInstances \
+      -H "apikey: your_secure_api_key_here"
+    ```
+  </Step>
+</Steps>
+
+## Service Configuration
+
+### Evolution API Service
+
+The main API service configuration:
+
+```yaml
+api:
+  container_name: evolution_api
+  image: evoapicloud/evolution-api:latest
+  restart: always
+  depends_on:
+    - redis
+    - evolution-postgres
+  ports:
+    - "127.0.0.1:8080:8080"  # Bind to localhost only
+  volumes:
+    - evolution_instances:/evolution/instances
+  networks:
+    - evolution-net
+  env_file:
+    - .env
+```
+
+<ResponseField name="image" type="string">
+  The Docker image to use. Options:
+  - `evoapicloud/evolution-api:latest` - Latest stable version
+  - `evoapicloud/evolution-api:v2.3.1` - Specific version
+  - `evoapicloud/evolution-api:develop` - Development version
+</ResponseField>
+
+<ResponseField name="ports" type="string">
+  Port mapping in format `host:container`.
+  
+  **Examples:**
+  - `"8080:8080"` - Expose on all interfaces
+  - `"127.0.0.1:8080:8080"` - Expose only on localhost
+  - `"9090:8080"` - Expose on host port 9090
+</ResponseField>
+
+<ResponseField name="volumes" type="array">
+  Volume mounts for persistent data:
+  
+  - `evolution_instances:/evolution/instances` - Instance data and QR codes
+  - `./custom-data:/evolution/custom` - Mount custom directory (optional)
+</ResponseField>
+
+### PostgreSQL Service
+
+Database configuration with performance optimizations:
+
+```yaml
+evolution-postgres:
+  container_name: evolution_postgres
+  image: postgres:15
+  restart: always
+  command:
+    - postgres
+    - -c
+    - max_connections=1000
+    - -c
+    - listen_addresses=*
+  environment:
+    - POSTGRES_DB=${POSTGRES_DATABASE}
+    - POSTGRES_USER=${POSTGRES_USERNAME}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  volumes:
+    - postgres_data:/var/lib/postgresql/data
+  networks:
+    - evolution-net
+```
+
+<Note>
+  The `max_connections=1000` setting allows Evolution API to handle many concurrent WhatsApp instances.
+</Note>
+
+### Redis Service
+
+Cache configuration with persistence:
+
+```yaml
+redis:
+  container_name: evolution_redis
+  image: redis:latest
+  restart: always
+  command: redis-server --port 6379 --appendonly yes
+  volumes:
+    - evolution_redis:/data
+  networks:
+    evolution-net:
+      aliases:
+        - evolution-redis
+```
+
+The `--appendonly yes` flag enables AOF persistence for data durability.
+
+## Volume Management
+
+Evolution API uses Docker volumes for persistent storage:
+
+```yaml
+volumes:
+  evolution_instances:  # WhatsApp instance data
+  evolution_redis:      # Redis cache data
+  postgres_data:        # PostgreSQL database
+```
+
+### Backup Volumes
+
+Create backups of your volumes:
+
+```bash
+# Backup instance data
+docker run --rm \
+  -v evolution-api_evolution_instances:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/instances-backup.tar.gz -C /data .
+
+# Backup database
+docker exec evolution_postgres pg_dump \
+  -U evolution evolution_db > backup.sql
+
+# Backup Redis data
+docker exec evolution_redis redis-cli BGSAVE
+docker cp evolution_redis:/data/dump.rdb ./redis-backup.rdb
+```
+
+### Restore Volumes
+
+Restore from backups:
+
+```bash
+# Restore instance data
+docker run --rm \
+  -v evolution-api_evolution_instances:/data \
+  -v $(pwd):/backup \
+  alpine tar xzf /backup/instances-backup.tar.gz -C /data
+
+# Restore database
+docker exec -i evolution_postgres psql \
+  -U evolution evolution_db < backup.sql
+
+# Restore Redis data
+docker cp ./redis-backup.rdb evolution_redis:/data/dump.rdb
+docker restart evolution_redis
+```
+
+## Network Configuration
+
+The `evolution-net` bridge network connects all services:
+
+```yaml
+networks:
+  evolution-net:
+    name: evolution-net
+    driver: bridge
+```
+
+Services can communicate using container names:
+- Database: `evolution-postgres:5432`
+- Redis: `evolution-redis:6379`
+- API: `evolution_api:8080`
+
+### Custom Network
+
+For integration with other services (e.g., reverse proxy):
+
+```yaml
+networks:
+  evolution-net:
+    driver: bridge
+  external-network:
+    external: true
+    name: your-existing-network
+```
+
+Add the external network to your services:
+
+```yaml
+api:
+  networks:
+    - evolution-net
+    - external-network
+```
+
+## Dockerfile Reference
+
+Evolution API uses a multi-stage build process:
+
+```dockerfile
+# Build stage
+FROM node:24-alpine AS builder
+
+RUN apk update && \
+    apk add --no-cache git ffmpeg wget curl bash openssl
+
+WORKDIR /evolution
+
+COPY ./package*.json ./
+COPY ./tsconfig.json ./
+COPY ./tsup.config.ts ./
+
+RUN npm ci --silent
+
+COPY ./src ./src
+COPY ./public ./public
+COPY ./prisma ./prisma
+
+RUN npm run build
+
+# Production stage
+FROM node:24-alpine AS final
+
+RUN apk update && \
+    apk add tzdata ffmpeg bash openssl
+
+ENV TZ=America/Sao_Paulo
+ENV DOCKER_ENV=true
+
+WORKDIR /evolution
+
+COPY --from=builder /evolution/dist ./dist
+COPY --from=builder /evolution/node_modules ./node_modules
+COPY --from=builder /evolution/prisma ./prisma
+
+EXPOSE 8080
+
+ENTRYPOINT ["/bin/bash", "-c", ". ./Docker/scripts/deploy_database.sh && npm run start:prod" ]
+```
+
+The Dockerfile:
+1. Uses Node.js 24 Alpine for minimal image size
+2. Installs required system dependencies (ffmpeg for audio conversion)
+3. Builds TypeScript source code
+4. Creates optimized production image
+5. Runs database migrations on startup
+
+## Environment Variables
+
+Key environment variables for Docker deployment:
+
+```bash .env
+# Server
+SERVER_URL=http://localhost:8080
+SERVER_PORT=8080
+AUTHENTICATION_API_KEY=your_api_key
+
+# Database
+DATABASE_PROVIDER=postgresql
+DATABASE_CONNECTION_URI=postgresql://evolution:pass@evolution-postgres:5432/evolution_db?schema=evolution_api
+
+# Redis
+CACHE_REDIS_ENABLED=true
+CACHE_REDIS_URI=redis://evolution-redis:6379/6
+
+# Logging
+LOG_LEVEL=ERROR,WARN,INFO
+LOG_COLOR=true
+```
+
+See the [Environment Variables](/deployment/environment-variables) page for complete documentation.
+
+## Production Considerations
+
+### Resource Limits
+
+Set resource limits for containers:
+
+```yaml
+api:
+  deploy:
+    resources:
+      limits:
+        cpus: '2'
+        memory: 4G
+      reservations:
+        cpus: '1'
+        memory: 2G
+```
+
+### Health Checks
+
+Add health checks to monitor service status:
+
+```yaml
+api:
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 40s
+
+postgres:
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U evolution"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+```
+
+### Restart Policies
+
+Configure automatic restart on failure:
+
+```yaml
+api:
+  restart: always  # Always restart
+  # restart: unless-stopped  # Restart unless manually stopped
+  # restart: on-failure  # Only restart on failure
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Container fails to start">
+    Check container logs:
+    
+    ```bash
+    docker-compose logs api
+    docker-compose logs evolution-postgres
+    docker-compose logs redis
+    ```
+    
+    Common issues:
+    - Missing environment variables in `.env`
+    - Port conflicts (8080, 5432, or 6379 already in use)
+    - Database connection errors
+  </Accordion>
+  
+  <Accordion title="Database connection errors">
+    Verify database is running and accessible:
+    
+    ```bash
+    docker-compose ps evolution-postgres
+    docker exec evolution_postgres pg_isready -U evolution
+    ```
+    
+    Check connection URI format in `.env`:
+    ```
+    DATABASE_CONNECTION_URI=postgresql://user:password@host:5432/database?schema=evolution_api
+    ```
+  </Accordion>
+  
+  <Accordion title="High memory usage">
+    Monitor container resource usage:
+    
+    ```bash
+    docker stats
+    ```
+    
+    Optimize by:
+    - Setting resource limits
+    - Reducing number of concurrent instances
+    - Enabling Redis cache to reduce database load
+    - Increasing server RAM
+  </Accordion>
+  
+  <Accordion title="Port conflicts">
+    If ports are already in use, change them in `docker-compose.yaml`:
+    
+    ```yaml
+    ports:
+      - "9090:8080"  # Use port 9090 instead of 8080
+    ```
+    
+    Find processes using ports:
+    
+    ```bash
+    sudo lsof -i :8080
+    sudo netstat -tlnp | grep 8080
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Useful Commands
+
+```bash
+# Start services
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# Restart services
+docker-compose restart
+
+# View logs
+docker-compose logs -f api
+
+# Execute commands in container
+docker exec -it evolution_api bash
+
+# Scale API instances
+docker-compose up -d --scale api=3
+
+# Remove all data (volumes)
+docker-compose down -v
+
+# Pull latest images
+docker-compose pull
+
+# Rebuild containers
+docker-compose up -d --build
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Complete guide to all configuration options
+  </Card>
+  
+  <Card title="Database Setup" icon="database" href="/deployment/database">
+    Configure PostgreSQL or MySQL for production
+  </Card>
+</CardGroup>

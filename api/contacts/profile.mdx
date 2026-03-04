@@ -1,0 +1,245 @@
+---
+title: 'Get Contact Profile'
+api: 'POST /chat/fetchProfile/:instanceName'
+description: 'Retrieve detailed profile information for a WhatsApp contact.'
+---
+
+## Overview
+
+You can fetch detailed profile information for any WhatsApp contact, including their status, profile picture, and business profile details if applicable.
+
+<Info>
+  This endpoint works for both individual contacts and business accounts.
+</Info>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+<ParamField body="number" type="string" required>
+  The phone number in international format without the '+' sign (e.g., "5511999999999").
+</ParamField>
+
+## Response
+
+<ResponseField name="wid" type="string">
+  WhatsApp ID of the contact.
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Contact's display name.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Contact's WhatsApp status/about text.
+</ResponseField>
+
+<ResponseField name="isBusiness" type="boolean">
+  Whether this is a business account.
+</ResponseField>
+
+<ResponseField name="profilePictureUrl" type="string">
+  URL of the contact's profile picture.
+</ResponseField>
+
+<ResponseField name="businessProfile" type="object">
+  Business profile information (only present for business accounts).
+  
+  <Expandable title="properties">
+    <ResponseField name="email" type="string">
+      Business email address.
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Business description.
+    </ResponseField>
+    
+    <ResponseField name="website" type="string[]">
+      Array of business website URLs.
+    </ResponseField>
+    
+    <ResponseField name="address" type="string">
+      Business physical address.
+    </ResponseField>
+    
+    <ResponseField name="vertical" type="string">
+      Business category/industry.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url https://api.example.com/chat/fetchProfile/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "number": "5511999999999"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.example.com/chat/fetchProfile/my-instance',
+  {
+    method: 'POST',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      number: '5511999999999'
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/chat/fetchProfile/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'number': '5511999999999'
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 Success (Individual)
+{
+  "wid": "5511999999999@s.whatsapp.net",
+  "name": "John Doe",
+  "status": "Available",
+  "isBusiness": false,
+  "profilePictureUrl": "https://example.com/profile-john.jpg"
+}
+```
+
+```json 200 Success (Business)
+{
+  "wid": "5511888888888@s.whatsapp.net",
+  "name": "Acme Corporation",
+  "status": "We're here to help!",
+  "isBusiness": true,
+  "profilePictureUrl": "https://example.com/profile-acme.jpg",
+  "businessProfile": {
+    "email": "contact@acme.com",
+    "description": "Leading provider of quality products",
+    "website": ["https://acme.com", "https://shop.acme.com"],
+    "address": "123 Business St, City, State 12345",
+    "vertical": "Retail"
+  }
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid request",
+  "message": "Number is required"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized",
+  "message": "Invalid API key"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Profile not found",
+  "message": "The specified number is not registered on WhatsApp"
+}
+```
+
+</ResponseExample>
+
+## Usage Notes
+
+<Info>
+  The contact's status is their WhatsApp "About" text, which they can customize in their settings.
+</Info>
+
+<Tip>
+  Use this endpoint to verify if a number is registered on WhatsApp before sending messages.
+</Tip>
+
+<Note>
+  Business profile information is only available for WhatsApp Business accounts.
+</Note>
+
+## Related Endpoints
+
+### Fetch Profile Picture
+
+To get only the profile picture URL:
+
+```
+POST /chat/fetchProfilePictureUrl/:instanceName
+```
+
+Request body:
+```json
+{
+  "number": "5511999999999"
+}
+```
+
+### Fetch Business Profile
+
+To get detailed business profile information:
+
+```
+POST /chat/fetchBusinessProfile/:instanceName
+```
+
+Request body:
+```json
+{
+  "number": "5511888888888"
+}
+```
+
+### Check WhatsApp Number
+
+To check if numbers are registered on WhatsApp:
+
+```
+POST /chat/whatsappNumbers/:instanceName
+```
+
+Request body:
+```json
+{
+  "numbers": ["5511999999999", "5511888888888"]
+}
+```
+
+Returns an array indicating which numbers exist on WhatsApp.

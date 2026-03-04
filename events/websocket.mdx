@@ -1,0 +1,545 @@
+---
+title: WebSocket
+description: Receive real-time WhatsApp events through WebSocket connections for instant bidirectional communication
+---
+
+WebSocket integration provides real-time, bidirectional communication between Evolution API and your applications. Perfect for dashboards, live chat interfaces, and real-time monitoring.
+
+## Configuration
+
+Configure WebSocket through environment variables:
+
+```bash .env
+# Enable WebSocket server
+WEBSOCKET_ENABLED=true
+
+# Enable global events (all instances)
+WEBSOCKET_GLOBAL_EVENTS=false
+
+# Allowed hosts for connections (comma-separated)
+WEBSOCKET_ALLOWED_HOSTS=127.0.0.1,::1,::ffff:127.0.0.1
+```
+
+### Host Restrictions
+
+Control which hosts can connect to your WebSocket server:
+
+<Tabs>
+  <Tab title="Localhost Only">
+    Default configuration for local development:
+    ```bash .env
+    WEBSOCKET_ALLOWED_HOSTS=127.0.0.1,::1,::ffff:127.0.0.1
+    ```
+  </Tab>
+  
+  <Tab title="Specific IPs">
+    Allow specific IP addresses:
+    ```bash .env
+    WEBSOCKET_ALLOWED_HOSTS=192.168.1.100,10.0.0.50
+    ```
+  </Tab>
+  
+  <Tab title="Allow All">
+    Allow connections from any host:
+    ```bash .env
+    WEBSOCKET_ALLOWED_HOSTS=*
+    ```
+    <Warning>
+    Only use `*` in trusted networks or with proper authentication.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Connection Modes
+
+WebSocket supports two connection modes:
+
+<Tabs>
+  <Tab title="Per-Instance Namespace">
+    Connect to a specific instance namespace:
+    ```javascript
+    const socket = io('http://localhost:8080/my_instance', {
+      query: {
+        apikey: 'YOUR_API_KEY'
+      }
+    });
+    ```
+    Receives events only from that instance.
+  </Tab>
+  
+  <Tab title="Global Events">
+    Connect to the default namespace to receive all events:
+    ```bash .env
+    WEBSOCKET_GLOBAL_EVENTS=true
+    ```
+    ```javascript
+    const socket = io('http://localhost:8080', {
+      query: {
+        apikey: 'YOUR_GLOBAL_API_KEY'
+      }
+    });
+    ```
+    Requires global API key authentication.
+  </Tab>
+</Tabs>
+
+## Authentication
+
+WebSocket connections require authentication via API key:
+
+<Steps>
+  <Step title="Query Parameter">
+    Pass API key in connection URL:
+    ```javascript
+    const socket = io('http://localhost:8080', {
+      query: {
+        apikey: 'YOUR_API_KEY'
+      }
+    });
+    ```
+  </Step>
+  
+  <Step title="Header (Alternative)">
+    Or pass as custom header:
+    ```javascript
+    const socket = io('http://localhost:8080', {
+      extraHeaders: {
+        apikey: 'YOUR_API_KEY'
+      }
+    });
+    ```
+  </Step>
+  
+  <Step title="Validation">
+    Evolution API validates the API key:
+    - For instance namespaces: Instance API key
+    - For global connection: Global API key
+  </Step>
+</Steps>
+
+<Warning>
+Connections without valid API keys will be rejected with an authentication error.
+</Warning>
+
+## Connection Examples
+
+<CodeGroup>
+```javascript JavaScript (Socket.IO)
+const io = require('socket.io-client');
+
+// Connect to instance namespace
+const socket = io('http://localhost:8080/my_instance', {
+  query: {
+    apikey: 'YOUR_API_KEY'
+  },
+  transports: ['websocket'],
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionAttempts: 10
+});
+
+// Connection events
+socket.on('connect', () => {
+  console.log('Connected to WebSocket');
+  console.log('Socket ID:', socket.id);
+});
+
+socket.on('disconnect', (reason) => {
+  console.log('Disconnected:', reason);
+});
+
+socket.on('connect_error', (error) => {
+  console.error('Connection error:', error.message);
+});
+
+// Listen for WhatsApp events
+socket.on('messages.upsert', (data) => {
+  console.log('New message:', data);
+});
+
+socket.on('qrcode.updated', (data) => {
+  console.log('QR Code updated:', data.data.qrcode);
+});
+
+socket.on('connection.update', (data) => {
+  console.log('Connection status:', data.data.state);
+});
+```
+
+```python Python
+import socketio
+
+# Create Socket.IO client
+sio = socketio.Client(
+    reconnection=True,
+    reconnection_attempts=10,
+    reconnection_delay=1
+)
+
+# Connection events
+@sio.event
+def connect():
+    print('Connected to WebSocket')
+    print(f'Socket ID: {sio.sid}')
+
+@sio.event
+def disconnect():
+    print('Disconnected from WebSocket')
+
+@sio.event
+def connect_error(data):
+    print(f'Connection error: {data}')
+
+# Listen for WhatsApp events
+@sio.on('messages.upsert')
+def on_message(data):
+    print(f"New message: {data}")
+
+@sio.on('qrcode.updated')
+def on_qrcode(data):
+    print(f"QR Code updated: {data}")
+
+@sio.on('connection.update')
+def on_connection(data):
+    print(f"Connection status: {data}")
+
+# Connect with authentication
+sio.connect(
+    'http://localhost:8080/my_instance',
+    auth={'apikey': 'YOUR_API_KEY'},
+    transports=['websocket']
+)
+
+# Keep connection alive
+sio.wait()
+```
+
+```html HTML + JavaScript
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Evolution API WebSocket</title>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+</head>
+<body>
+  <div id="status">Connecting...</div>
+  <div id="events"></div>
+
+  <script>
+    const socket = io('http://localhost:8080/my_instance', {
+      query: {
+        apikey: 'YOUR_API_KEY'
+      },
+      transports: ['websocket']
+    });
+
+    socket.on('connect', () => {
+      document.getElementById('status').textContent = 'Connected';
+      console.log('Connected:', socket.id);
+    });
+
+    socket.on('disconnect', () => {
+      document.getElementById('status').textContent = 'Disconnected';
+    });
+
+    // Listen for all events
+    const events = [
+      'messages.upsert',
+      'messages.update',
+      'qrcode.updated',
+      'connection.update'
+    ];
+
+    events.forEach(event => {
+      socket.on(event, (data) => {
+        console.log(`Event: ${event}`, data);
+        
+        const eventDiv = document.createElement('div');
+        eventDiv.textContent = `${data.event} - ${data.instance}`;
+        document.getElementById('events').appendChild(eventDiv);
+      });
+    });
+  </script>
+</body>
+</html>
+```
+
+```java Java
+import io.socket.client.IO;
+import io.socket.client.Socket;
+import org.json.JSONObject;
+
+import java.net.URISyntaxException;
+
+public class WebSocketClient {
+    public static void main(String[] args) {
+        try {
+            IO.Options options = new IO.Options();
+            options.query = "apikey=YOUR_API_KEY";
+            options.transports = new String[]{"websocket"};
+            options.reconnection = true;
+            
+            Socket socket = IO.socket("http://localhost:8080/my_instance", options);
+            
+            socket.on(Socket.EVENT_CONNECT, args1 -> {
+                System.out.println("Connected to WebSocket");
+                System.out.println("Socket ID: " + socket.id());
+            });
+            
+            socket.on(Socket.EVENT_DISCONNECT, args1 -> {
+                System.out.println("Disconnected from WebSocket");
+            });
+            
+            socket.on(Socket.EVENT_CONNECT_ERROR, args1 -> {
+                System.err.println("Connection error: " + args1[0]);
+            });
+            
+            // Listen for WhatsApp events
+            socket.on("messages.upsert", args1 -> {
+                JSONObject data = (JSONObject) args1[0];
+                System.out.println("New message: " + data);
+            });
+            
+            socket.on("qrcode.updated", args1 -> {
+                JSONObject data = (JSONObject) args1[0];
+                System.out.println("QR Code updated: " + data);
+            });
+            
+            socket.on("connection.update", args1 -> {
+                JSONObject data = (JSONObject) args1[0];
+                System.out.println("Connection status: " + data);
+            });
+            
+            socket.connect();
+            
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+</CodeGroup>
+
+## Available Events
+
+You can listen for any WhatsApp event through WebSocket:
+
+### Instance Events
+- `qrcode.updated` - QR code changes
+- `connection.update` - Connection status changes
+
+### Message Events
+- `messages.set` - Message history loaded
+- `messages.upsert` - New messages received/sent
+- `messages.edited` - Messages edited
+- `messages.update` - Message status updates (read, delivered)
+- `messages.delete` - Messages deleted
+- `send.message` - Message sent confirmation
+- `send.message.update` - Sent message status update
+
+### Contact Events
+- `contacts.set` - Contacts loaded
+- `contacts.upsert` - Contact added/updated
+- `contacts.update` - Contact information changed
+- `presence.update` - Contact online/offline status
+
+### Chat Events
+- `chats.set` - Chats loaded
+- `chats.upsert` - New chat created
+- `chats.update` - Chat updated
+- `chats.delete` - Chat deleted
+
+### Group Events
+- `groups.upsert` - Group created/joined
+- `group.update` - Group information changed
+- `group.participants.update` - Participants added/removed
+
+### Other Events
+- `labels.edit` - Label edited
+- `labels.association` - Label associated with chat
+- `call` - Incoming call
+
+## Per-Instance Configuration
+
+Configure which events are emitted for a specific instance:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/websocket/set/instance_name \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "websocket": {
+      "enabled": true,
+      "events": [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "QRCODE_UPDATED",
+        "CONNECTION_UPDATE"
+      ]
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await axios.post(
+  'https://your-api.com/websocket/set/instance_name',
+  {
+    websocket: {
+      enabled: true,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'QRCODE_UPDATED',
+        'CONNECTION_UPDATE'
+      ]
+    }
+  },
+  {
+    headers: { 'apikey': 'YOUR_API_KEY' }
+  }
+);
+```
+</CodeGroup>
+
+## Event Payload Structure
+
+All WebSocket events have a consistent structure:
+
+```json
+{
+  "event": "messages.upsert",
+  "instance": "my_instance",
+  "data": {
+    // Event-specific data
+  },
+  "server_url": "https://your-evolution-api.com",
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "sender": "5511999999999",
+  "apikey": "instance_api_key"
+}
+```
+
+## Sending Custom Commands
+
+Send custom commands to WhatsApp through WebSocket:
+
+```javascript
+// Send a custom Baileys node/stanza
+socket.emit('sendNode', {
+  instanceId: 'my_instance',
+  stanza: {
+    tag: 'iq',
+    attrs: { type: 'get', xmlns: 'w:web', to: 'c.us' },
+    content: [{ tag: 'status', attrs: {} }]
+  }
+});
+```
+
+<Warning>
+Sending custom nodes requires deep knowledge of WhatsApp's protocol. Incorrect usage may cause connection issues.
+</Warning>
+
+## Best Practices
+
+<Steps>
+  <Step title="Handle Reconnections">
+    Always enable automatic reconnection:
+    ```javascript
+    const socket = io(url, {
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 10
+    });
+    ```
+  </Step>
+  
+  <Step title="Use Event Filtering">
+    Configure only needed events to reduce bandwidth:
+    ```javascript
+    websocket: {
+      events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE']
+    }
+    ```
+  </Step>
+  
+  <Step title="Implement Error Handling">
+    Handle all error events:
+    ```javascript
+    socket.on('connect_error', (error) => {
+      console.error('Connection failed:', error);
+    });
+    
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
+    });
+    ```
+  </Step>
+  
+  <Step title="Secure Your Connection">
+    - Use HTTPS/WSS in production
+    - Restrict `WEBSOCKET_ALLOWED_HOSTS`
+    - Never expose API keys in client-side code
+  </Step>
+  
+  <Step title="Monitor Connection State">
+    Track connection status in your UI:
+    ```javascript
+    socket.on('connect', () => setStatus('Connected'));
+    socket.on('disconnect', () => setStatus('Disconnected'));
+    ```
+  </Step>
+</Steps>
+
+## CORS Configuration
+
+WebSocket respects your CORS settings:
+
+```bash .env
+# Allow specific origins
+CORS_ORIGIN=https://your-app.com,https://dashboard.your-app.com
+
+# Or allow all origins
+CORS_ORIGIN=*
+```
+
+<Note>
+WebSocket CORS is automatically configured based on your `CORS_ORIGIN` setting.
+</Note>
+
+## Troubleshooting
+
+<Accordion title="Connection rejected">
+  1. Verify API key is correct
+  2. Check that WebSocket is enabled: `WEBSOCKET_ENABLED=true`
+  3. Ensure your IP is in `WEBSOCKET_ALLOWED_HOSTS`
+  4. Check Evolution API logs for authentication errors
+</Accordion>
+
+<Accordion title="No events received">
+  1. Verify instance is connected to WhatsApp
+  2. Check that specific events are enabled in instance configuration
+  3. Ensure you're connected to correct namespace
+  4. Enable logging to see if events are being emitted
+</Accordion>
+
+<Accordion title="Frequent disconnections">
+  1. Check network stability
+  2. Increase `reconnectionDelay` in client configuration
+  3. Monitor server resources (CPU, memory)
+  4. Check for firewall issues blocking WebSocket connections
+</Accordion>
+
+<Accordion title="Authentication failed">
+  1. Verify API key format (no extra spaces)
+  2. For instance namespaces, use instance API key
+  3. For global events, use global API key
+  4. Check that instance exists and is active
+</Accordion>
+
+<Accordion title="CORS errors in browser">
+  1. Add your domain to `CORS_ORIGIN`
+  2. Restart Evolution API after changing CORS settings
+  3. Check browser console for specific CORS error
+  4. Ensure protocol matches (http/https)
+</Accordion>

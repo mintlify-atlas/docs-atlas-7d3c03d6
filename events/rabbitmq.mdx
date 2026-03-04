@@ -1,0 +1,546 @@
+---
+title: RabbitMQ
+description: Stream WhatsApp events to RabbitMQ message queues for reliable, scalable event processing
+---
+
+RabbitMQ integration enables you to stream WhatsApp events to RabbitMQ queues for asynchronous processing, load balancing, and microservices architecture.
+
+## Configuration
+
+Configure RabbitMQ connection and event routing through environment variables.
+
+### Connection Settings
+
+```bash .env
+# Enable RabbitMQ integration
+RABBITMQ_ENABLED=true
+
+# RabbitMQ connection URI
+RABBITMQ_URI=amqp://username:password@localhost:5672
+
+# Exchange name for routing events
+RABBITMQ_EXCHANGE_NAME=evolution
+
+# Maximum frame size (bytes)
+RABBITMQ_FRAME_MAX=8192
+```
+
+<Note>
+The connection URI format is: `amqp://username:password@host:port/vhost`
+- Default port: 5672
+- Default vhost: `/`
+- For RabbitMQ with SSL, use `amqps://` protocol
+</Note>
+
+### Global vs Instance Events
+
+You can configure RabbitMQ to work in two modes:
+
+<Tabs>
+  <Tab title="Per-Instance Queues">
+    Each instance gets its own queues and exchange:
+    
+    ```bash .env
+    RABBITMQ_ENABLED=true
+    RABBITMQ_GLOBAL_ENABLED=false
+    ```
+    
+    Creates queues like:
+    - `my_instance.messages.upsert`
+    - `my_instance.qrcode.updated`
+    - `my_instance.connection.update`
+  </Tab>
+  
+  <Tab title="Global Queues">
+    All instances send events to shared global queues:
+    
+    ```bash .env
+    RABBITMQ_ENABLED=true
+    RABBITMQ_GLOBAL_ENABLED=true
+    RABBITMQ_PREFIX_KEY=evolution
+    ```
+    
+    Creates queues like:
+    - `evolution.messages.upsert`
+    - `evolution.qrcode.updated`
+    - `evolution.connection.update`
+  </Tab>
+</Tabs>
+
+## Exchange and Queue Setup
+
+Evolution API automatically creates:
+
+<Steps>
+  <Step title="Topic Exchange">
+    A topic exchange with the configured name (default: `evolution`)
+    - **Durable**: Survives broker restarts
+    - **Type**: Topic (enables routing pattern matching)
+  </Step>
+  
+  <Step title="Quorum Queues">
+    Queues for each enabled event:
+    - **Durable**: Messages persist to disk
+    - **Type**: Quorum (replicated, highly available)
+    - **Auto-delete**: Disabled
+  </Step>
+  
+  <Step title="Queue Bindings">
+    Bindings between queues and exchange using routing keys:
+    - Routing key format: event name (e.g., `MESSAGES_UPSERT`)
+    - Enables selective event consumption
+  </Step>
+</Steps>
+
+## Available Events
+
+Configure which events are sent to RabbitMQ:
+
+<Tabs>
+  <Tab title="Instance Events">
+    ```bash .env
+    # Application lifecycle
+    RABBITMQ_EVENTS_APPLICATION_STARTUP=false
+    RABBITMQ_EVENTS_INSTANCE_CREATE=false
+    RABBITMQ_EVENTS_INSTANCE_DELETE=false
+    
+    # Connection events
+    RABBITMQ_EVENTS_QRCODE_UPDATED=true
+    RABBITMQ_EVENTS_CONNECTION_UPDATE=true
+    RABBITMQ_EVENTS_REMOVE_INSTANCE=false
+    RABBITMQ_EVENTS_LOGOUT_INSTANCE=false
+    ```
+  </Tab>
+  
+  <Tab title="Message Events">
+    ```bash .env
+    # Message events
+    RABBITMQ_EVENTS_MESSAGES_SET=true
+    RABBITMQ_EVENTS_MESSAGES_UPSERT=true
+    RABBITMQ_EVENTS_MESSAGES_EDITED=true
+    RABBITMQ_EVENTS_MESSAGES_UPDATE=true
+    RABBITMQ_EVENTS_MESSAGES_DELETE=true
+    RABBITMQ_EVENTS_SEND_MESSAGE=true
+    RABBITMQ_EVENTS_SEND_MESSAGE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Contact Events">
+    ```bash .env
+    # Contact events
+    RABBITMQ_EVENTS_CONTACTS_SET=true
+    RABBITMQ_EVENTS_CONTACTS_UPSERT=true
+    RABBITMQ_EVENTS_CONTACTS_UPDATE=true
+    RABBITMQ_EVENTS_PRESENCE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Chat & Group Events">
+    ```bash .env
+    # Chat events
+    RABBITMQ_EVENTS_CHATS_SET=true
+    RABBITMQ_EVENTS_CHATS_UPSERT=true
+    RABBITMQ_EVENTS_CHATS_UPDATE=true
+    RABBITMQ_EVENTS_CHATS_DELETE=true
+    
+    # Group events
+    RABBITMQ_EVENTS_GROUPS_UPSERT=true
+    RABBITMQ_EVENTS_GROUP_UPDATE=true
+    RABBITMQ_EVENTS_GROUP_PARTICIPANTS_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Other Events">
+    ```bash .env
+    # Call events
+    RABBITMQ_EVENTS_CALL=true
+    
+    # Typebot integration
+    RABBITMQ_EVENTS_TYPEBOT_START=false
+    RABBITMQ_EVENTS_TYPEBOT_CHANGE_STATUS=false
+    ```
+  </Tab>
+</Tabs>
+
+## Per-Instance Configuration
+
+Configure RabbitMQ events for a specific instance via API:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/rabbitmq/set/instance_name \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "rabbitmq": {
+      "enabled": true,
+      "events": [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "QRCODE_UPDATED",
+        "CONNECTION_UPDATE"
+      ]
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await axios.post(
+  'https://your-api.com/rabbitmq/set/instance_name',
+  {
+    rabbitmq: {
+      enabled: true,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'QRCODE_UPDATED',
+        'CONNECTION_UPDATE'
+      ]
+    }
+  },
+  {
+    headers: { 'apikey': 'YOUR_API_KEY' }
+  }
+);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-api.com/rabbitmq/set/instance_name',
+    json={
+        'rabbitmq': {
+            'enabled': True,
+            'events': [
+                'MESSAGES_UPSERT',
+                'MESSAGES_UPDATE',
+                'QRCODE_UPDATED',
+                'CONNECTION_UPDATE'
+            ]
+        }
+    },
+    headers={'apikey': 'YOUR_API_KEY'}
+)
+```
+</CodeGroup>
+
+## Message Format
+
+Messages published to RabbitMQ have the following JSON structure:
+
+```json
+{
+  "event": "messages.upsert",
+  "instance": "my_instance",
+  "data": {
+    // Event-specific data
+  },
+  "server_url": "https://your-evolution-api.com",
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "sender": "5511999999999",
+  "apikey": "instance_api_key"
+}
+```
+
+## Consuming Events
+
+Here are examples of consuming events from RabbitMQ:
+
+<CodeGroup>
+```javascript Node.js
+const amqp = require('amqplib');
+
+async function consumeEvents() {
+  const connection = await amqp.connect('amqp://localhost');
+  const channel = await connection.createChannel();
+  
+  const exchange = 'evolution';
+  const queue = 'evolution.messages.upsert';
+  
+  // Ensure exchange exists
+  await channel.assertExchange(exchange, 'topic', { durable: true });
+  
+  // Ensure queue exists
+  await channel.assertQueue(queue, {
+    durable: true,
+    arguments: { 'x-queue-type': 'quorum' }
+  });
+  
+  // Bind queue to exchange
+  await channel.bindQueue(queue, exchange, 'MESSAGES_UPSERT');
+  
+  console.log('Waiting for messages...');
+  
+  // Consume messages
+  channel.consume(queue, (msg) => {
+    if (msg !== null) {
+      const event = JSON.parse(msg.content.toString());
+      console.log('Received event:', event.event);
+      console.log('Instance:', event.instance);
+      console.log('Data:', event.data);
+      
+      // Acknowledge message
+      channel.ack(msg);
+    }
+  });
+}
+
+consumeEvents().catch(console.error);
+```
+
+```python Python
+import pika
+import json
+
+def callback(ch, method, properties, body):
+    event = json.loads(body)
+    print(f"Received event: {event['event']}")
+    print(f"Instance: {event['instance']}")
+    print(f"Data: {event['data']}")
+    
+    # Acknowledge message
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+# Connect to RabbitMQ
+connection = pika.BlockingConnection(
+    pika.ConnectionParameters('localhost')
+)
+channel = connection.channel()
+
+exchange = 'evolution'
+queue = 'evolution.messages.upsert'
+
+# Ensure exchange exists
+channel.exchange_declare(
+    exchange=exchange,
+    exchange_type='topic',
+    durable=True
+)
+
+# Ensure queue exists
+channel.queue_declare(
+    queue=queue,
+    durable=True,
+    arguments={'x-queue-type': 'quorum'}
+)
+
+# Bind queue to exchange
+channel.queue_bind(
+    exchange=exchange,
+    queue=queue,
+    routing_key='MESSAGES_UPSERT'
+)
+
+print('Waiting for messages...')
+
+# Start consuming
+channel.basic_consume(
+    queue=queue,
+    on_message_callback=callback
+)
+
+channel.start_consuming()
+```
+
+```go Go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "log"
+    
+    "github.com/streadway/amqp"
+)
+
+type Event struct {
+    Event     string                 `json:"event"`
+    Instance  string                 `json:"instance"`
+    Data      map[string]interface{} `json:"data"`
+    ServerURL string                 `json:"server_url"`
+    DateTime  string                 `json:"date_time"`
+    Sender    string                 `json:"sender"`
+    APIKey    string                 `json:"apikey"`
+}
+
+func main() {
+    conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer conn.Close()
+    
+    ch, err := conn.Channel()
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer ch.Close()
+    
+    exchange := "evolution"
+    queue := "evolution.messages.upsert"
+    
+    // Declare exchange
+    err = ch.ExchangeDeclare(
+        exchange,
+        "topic",
+        true,  // durable
+        false, // auto-deleted
+        false, // internal
+        false, // no-wait
+        nil,   // arguments
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Declare queue
+    args := amqp.Table{"x-queue-type": "quorum"}
+    _, err = ch.QueueDeclare(
+        queue,
+        true,  // durable
+        false, // delete when unused
+        false, // exclusive
+        false, // no-wait
+        args,  // arguments
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    // Bind queue
+    err = ch.QueueBind(
+        queue,
+        "MESSAGES_UPSERT",
+        exchange,
+        false,
+        nil,
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    msgs, err := ch.Consume(
+        queue,
+        "",    // consumer
+        false, // auto-ack
+        false, // exclusive
+        false, // no-local
+        false, // no-wait
+        nil,   // args
+    )
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    fmt.Println("Waiting for messages...")
+    
+    forever := make(chan bool)
+    
+    go func() {
+        for d := range msgs {
+            var event Event
+            err := json.Unmarshal(d.Body, &event)
+            if err != nil {
+                log.Printf("Error parsing message: %v", err)
+                continue
+            }
+            
+            fmt.Printf("Received event: %s\n", event.Event)
+            fmt.Printf("Instance: %s\n", event.Instance)
+            fmt.Printf("Data: %v\n", event.Data)
+            
+            d.Ack(false)
+        }
+    }()
+    
+    <-forever
+}
+```
+</CodeGroup>
+
+## Connection Resilience
+
+Evolution API implements automatic reconnection with exponential backoff:
+
+- **Initial delay**: 5 seconds
+- **Maximum attempts**: 10
+- **Exponential backoff**: Delay doubles each attempt (up to 5 times)
+- **Heartbeat**: 30 seconds to detect connection loss
+
+<Note>
+During connection loss, Evolution API will queue events in memory and retry delivery. Monitor your RabbitMQ connection status in the logs.
+</Note>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Quorum Queues">
+    Evolution API creates quorum queues by default for high availability and data safety. Ensure your RabbitMQ cluster has at least 3 nodes for optimal quorum queue performance.
+  </Step>
+  
+  <Step title="Enable Acknowledgments">
+    Always acknowledge messages after successful processing to prevent message loss:
+    ```javascript
+    channel.ack(msg);
+    ```
+  </Step>
+  
+  <Step title="Handle Processing Errors">
+    Implement error handling and use dead letter queues for failed messages:
+    ```javascript
+    try {
+      await processEvent(event);
+      channel.ack(msg);
+    } catch (error) {
+      console.error('Processing failed:', error);
+      channel.nack(msg, false, false); // Send to DLQ
+    }
+    ```
+  </Step>
+  
+  <Step title="Set Prefetch Count">
+    Limit concurrent message processing per consumer:
+    ```javascript
+    channel.prefetch(10); // Process 10 messages at a time
+    ```
+  </Step>
+  
+  <Step title="Monitor Queue Depth">
+    Set up alerts for queue depth to detect processing bottlenecks.
+  </Step>
+</Steps>
+
+<Warning>
+Quorum queues require RabbitMQ 3.8.0 or later. If you're using an older version, Evolution API will fall back to classic durable queues.
+</Warning>
+
+## Troubleshooting
+
+<Accordion title="Connection refused">
+  1. Verify RabbitMQ is running: `systemctl status rabbitmq-server`
+  2. Check the connection URI in your `.env` file
+  3. Ensure firewall allows port 5672 (or your configured port)
+  4. Verify credentials are correct
+</Accordion>
+
+<Accordion title="Messages not appearing in queues">
+  1. Check that specific events are enabled in configuration
+  2. Verify `RABBITMQ_ENABLED=true`
+  3. Check Evolution API logs for RabbitMQ errors
+  4. Ensure the instance is connected to WhatsApp
+</Accordion>
+
+<Accordion title="Consumer not receiving messages">
+  1. Verify queue binding to exchange
+  2. Check routing key matches event name
+  3. Ensure consumer is acknowledging messages
+  4. Check for messages in dead letter queue
+</Accordion>
+
+<Accordion title="High memory usage">
+  1. Check queue depth - consumers may be too slow
+  2. Increase number of consumers
+  3. Optimize message processing code
+  4. Consider increasing `RABBITMQ_FRAME_MAX` if messages are large
+</Accordion>

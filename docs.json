@@ -1,122 +1,171 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Evolution API",
+  "theme": "sequoia",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#25D366",
+    "light": "#128C7E",
+    "dark": "#075E54"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/EvolutionAPI/evolution-api"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/EvolutionAPI/evolution-api"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/instances",
+              "concepts/authentication",
+              "concepts/webhooks",
+              "concepts/multi-tenant"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "WhatsApp Integration",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "whatsapp/baileys",
+              "whatsapp/business-api",
+              "whatsapp/connections"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Chatbot Integrations",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "integrations/typebot",
+              "integrations/chatwoot",
+              "integrations/dify",
+              "integrations/openai",
+              "integrations/flowise",
+              "integrations/n8n",
+              "integrations/evoai"
+            ]
+          },
+          {
+            "group": "Event Systems",
+            "pages": [
+              "events/webhooks",
+              "events/rabbitmq",
+              "events/kafka",
+              "events/sqs",
+              "events/websocket",
+              "events/pusher"
+            ]
+          },
+          {
+            "group": "Storage & Media",
+            "pages": [
+              "storage/s3",
+              "storage/minio"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "deployment/docker",
+              "deployment/environment-variables",
+              "deployment/database"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
             "pages": [
-              "api-reference/introduction"
+              "api/overview",
+              "api/authentication",
+              "api/errors"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Instance Management",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/instance/create",
+              "api/instance/list",
+              "api/instance/connect",
+              "api/instance/delete"
+            ]
+          },
+          {
+            "group": "Messaging",
+            "pages": [
+              "api/messages/send-text",
+              "api/messages/send-media",
+              "api/messages/send-audio",
+              "api/messages/send-location",
+              "api/messages/send-contact",
+              "api/messages/status"
+            ]
+          },
+          {
+            "group": "Chats",
+            "pages": [
+              "api/chats/list",
+              "api/chats/find",
+              "api/chats/archive",
+              "api/chats/delete"
+            ]
+          },
+          {
+            "group": "Groups",
+            "pages": [
+              "api/groups/create",
+              "api/groups/info",
+              "api/groups/participants",
+              "api/groups/settings"
+            ]
+          },
+          {
+            "group": "Contacts",
+            "pages": [
+              "api/contacts/list",
+              "api/contacts/profile"
+            ]
+          },
+          {
+            "group": "Labels",
+            "pages": [
+              "api/labels/create",
+              "api/labels/assign"
+            ]
+          },
+          {
+            "group": "Settings",
+            "pages": [
+              "api/settings/profile",
+              "api/settings/privacy"
+            ]
+          },
+          {
+            "group": "Proxy",
+            "pages": [
+              "api/proxy/configure"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

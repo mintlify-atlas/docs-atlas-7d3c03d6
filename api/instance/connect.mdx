@@ -1,0 +1,345 @@
+---
+title: Connect Instance
+description: Connect or reconnect a WhatsApp instance and retrieve QR code for authentication
+---
+
+## GET /instance/connect/:instanceName
+
+Connect a WhatsApp instance to the WhatsApp servers. For Baileys integration, this generates a QR code that you scan with WhatsApp mobile app. For already connected instances, this returns the current connection state.
+
+### Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+```bash
+apikey: YOUR_API_KEY
+```
+
+### Path Parameters
+
+<ParamField path="instanceName" type="string" required>
+  Name of the instance you want to connect. This is the `instanceName` you specified when creating the instance.
+</ParamField>
+
+### Query Parameters
+
+<ParamField query="number" type="string">
+  WhatsApp phone number to connect (optional). Used for pairing with phone number instead of QR code.
+</ParamField>
+
+### Response
+
+The response varies based on the current connection state:
+
+#### Already Connected (state: open)
+
+<ResponseField name="instance" type="object">
+  Instance information
+  
+  <ResponseField name="instanceName" type="string">
+    Name of the instance
+  </ResponseField>
+  
+  <ResponseField name="state" type="string">
+    Current connection state (`open`)
+  </ResponseField>
+</ResponseField>
+
+#### Connecting (state: connecting)
+
+<ResponseField name="code" type="string">
+  Raw QR code string
+</ResponseField>
+
+<ResponseField name="base64" type="string">
+  QR code as base64-encoded image. Display this in an `<img>` tag or QR code reader.
+</ResponseField>
+
+<ResponseField name="pairingCode" type="string">
+  Pairing code for phone number authentication (when using `number` parameter)
+</ResponseField>
+
+#### Disconnected (state: close)
+
+After initiating connection, returns QR code:
+
+<ResponseField name="code" type="string">
+  Raw QR code string
+</ResponseField>
+
+<ResponseField name="base64" type="string">
+  QR code as base64-encoded image
+</ResponseField>
+
+<ResponseField name="pairingCode" type="string">
+  Pairing code (if number parameter provided)
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+
+```bash Connect Instance
+curl -X GET "https://api.example.com/instance/connect/my-instance" \
+  -H "apikey: YOUR_API_KEY"
+```
+
+```bash Connect with Phone Number
+curl -X GET "https://api.example.com/instance/connect/my-instance?number=5511999999999" \
+  -H "apikey: YOUR_API_KEY"
+```
+
+```javascript JavaScript - QR Code Display
+const instanceName = 'my-instance';
+
+const response = await fetch(
+  `https://api.example.com/instance/connect/${instanceName}`,
+  {
+    method: 'GET',
+    headers: {
+      'apikey': 'YOUR_API_KEY'
+    }
+  }
+);
+
+const data = await response.json();
+
+if (data.base64) {
+  // Display QR code
+  const img = document.createElement('img');
+  img.src = data.base64;
+  document.body.appendChild(img);
+  console.log('Scan this QR code with WhatsApp');
+} else if (data.instance?.state === 'open') {
+  console.log('Instance is already connected!');
+}
+```
+
+```javascript JavaScript - Polling for Connection
+const instanceName = 'my-instance';
+
+async function connectAndWait() {
+  // Initiate connection
+  const connectResponse = await fetch(
+    `https://api.example.com/instance/connect/${instanceName}`,
+    {
+      method: 'GET',
+      headers: { 'apikey': 'YOUR_API_KEY' }
+    }
+  );
+  
+  const qrData = await connectResponse.json();
+  
+  if (qrData.base64) {
+    console.log('QR Code received, display to user');
+    // Display qrData.base64 to user
+    
+    // Poll for connection status
+    const checkStatus = setInterval(async () => {
+      const statusResponse = await fetch(
+        `https://api.example.com/instance/connectionState/${instanceName}`,
+        {
+          method: 'GET',
+          headers: { 'apikey': 'YOUR_API_KEY' }
+        }
+      );
+      
+      const status = await statusResponse.json();
+      
+      if (status.instance.state === 'open') {
+        console.log('Connected successfully!');
+        clearInterval(checkStatus);
+      }
+    }, 3000); // Check every 3 seconds
+  }
+}
+
+connectAndWait();
+```
+
+```python Python
+import requests
+import base64
+import io
+from PIL import Image
+
+instance_name = 'my-instance'
+
+response = requests.get(
+    f'https://api.example.com/instance/connect/{instance_name}',
+    headers={'apikey': 'YOUR_API_KEY'}
+)
+
+data = response.json()
+
+if 'base64' in data:
+    # Extract base64 image data
+    base64_str = data['base64'].split(',')[1]  # Remove data:image/png;base64, prefix
+    image_data = base64.b64decode(base64_str)
+    
+    # Display or save QR code
+    image = Image.open(io.BytesIO(image_data))
+    image.show()  # Opens QR code in default image viewer
+    print('Scan the QR code with WhatsApp')
+elif data.get('instance', {}).get('state') == 'open':
+    print('Instance is already connected!')
+```
+
+```python Python - With Phone Number
+import requests
+
+instance_name = 'my-instance'
+phone_number = '5511999999999'
+
+response = requests.get(
+    f'https://api.example.com/instance/connect/{instance_name}',
+    params={'number': phone_number},
+    headers={'apikey': 'YOUR_API_KEY'}
+)
+
+data = response.json()
+
+if 'pairingCode' in data:
+    print(f"Enter this code in WhatsApp: {data['pairingCode']}")
+else:
+    print(f"Connection status: {data.get('instance', {}).get('state')}")
+```
+
+```php PHP
+<?php
+$instanceName = 'my-instance';
+
+$response = file_get_contents(
+    "https://api.example.com/instance/connect/{$instanceName}",
+    false,
+    stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => 'apikey: YOUR_API_KEY'
+        ]
+    ])
+);
+
+$data = json_decode($response, true);
+
+if (isset($data['base64'])) {
+    echo '<img src="' . $data['base64'] . '" alt="QR Code">';
+    echo '<p>Scan this QR code with WhatsApp</p>';
+} elseif (isset($data['instance']['state']) && $data['instance']['state'] === 'open') {
+    echo 'Instance is already connected!';
+}
+?>
+```
+
+</CodeGroup>
+
+### Response Examples
+
+```json Already Connected
+{
+  "instance": {
+    "instanceName": "my-instance",
+    "state": "open"
+  }
+}
+```
+
+```json QR Code Response
+{
+  "code": "2@v1j2k3l4m5n6o7p8q9r0s1t2u3v4w5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0m1n2o3p4...",
+  "base64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAADsUlEQVR42uyYTY7jMAyE..."
+}
+```
+
+```json Pairing Code Response
+{
+  "pairingCode": "ABCD-EFGH",
+  "code": "2@...",
+  "base64": "data:image/png;base64,..."
+}
+```
+
+```json Error - Instance Not Found
+{
+  "error": true,
+  "message": "The \"my-instance\" instance does not exist"
+}
+```
+
+### Connection Flow
+
+1. **Call the connect endpoint** - Initiates connection and receives QR code
+2. **Display QR code to user** - Show the `base64` image for scanning
+3. **User scans QR code** - Open WhatsApp > Settings > Linked Devices > Link a Device
+4. **Monitor connection status** - Poll the `/instance/connectionState/:instanceName` endpoint
+5. **Connection confirmed** - Status changes to `open`
+
+<Note>
+  **QR Code Expiration**: QR codes expire after approximately 60 seconds. If the user doesn't scan in time, call the endpoint again to get a fresh QR code.
+</Note>
+
+### Connection States
+
+| State | Description | Action Required |
+|-------|-------------|----------------|
+| **open** | Instance is connected | None - ready to use |
+| **connecting** | Connection in progress | Display QR code |
+| **close** | Instance is disconnected | Call connect endpoint |
+
+### Integration Types
+
+This endpoint behaves differently based on your integration:
+
+#### WHATSAPP-BAILEYS
+- Generates QR code for WhatsApp Web authentication
+- Supports pairing code with phone number
+- Requires QR code scan or pairing code entry
+
+#### WHATSAPP-BUSINESS
+- Does not require QR code
+- Connection managed through Meta Business API
+- Returns connection state only
+
+### Error Handling
+
+The API returns standard HTTP status codes:
+
+- `200` - Success (returns QR code or connection state)
+- `400` - Bad request (instance doesn't exist)
+- `401` - Unauthorized (invalid API key)
+- `500` - Internal server error
+
+Common error scenarios:
+
+1. **Instance doesn't exist**: Verify the `instanceName` is correct
+2. **Already connecting**: Wait for current connection attempt to complete or timeout
+3. **Authentication failed**: Check that your API key is valid
+
+<Warning>
+  Do not attempt to connect an instance that is already in "connecting" state. Wait for the current attempt to complete or timeout before retrying.
+</Warning>
+
+### Best Practices
+
+1. **Implement timeout logic**: If QR code isn't scanned within 60 seconds, request a new one
+2. **Poll connection state**: Check connection status every 3-5 seconds during QR code display
+3. **Handle reconnection**: If instance disconnects, automatically call connect endpoint
+4. **Store connection state**: Cache the connection state to minimize API calls
+5. **User experience**: Show a clear countdown timer for QR code expiration
+
+### Webhook Integration
+
+Instead of polling, you can configure webhooks to receive connection updates:
+
+```json CONNECTION_UPDATE Event
+{
+  "event": "CONNECTION_UPDATE",
+  "instance": "my-instance",
+  "data": {
+    "state": "open",
+    "statusReason": 200
+  }
+}
+```
+
+Subscribe to the `CONNECTION_UPDATE` event when creating your instance to receive real-time connection notifications.

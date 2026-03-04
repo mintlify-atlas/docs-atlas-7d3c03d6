@@ -1,0 +1,857 @@
+---
+title: "Installation"
+description: "Complete installation guide for Evolution API with Docker, npm, and production deployment"
+---
+
+## Overview
+
+Evolution API can be installed in multiple ways depending on your needs. This guide covers Docker installation (recommended), manual installation with npm, and production deployment configurations.
+
+<Warning>
+  Evolution API requires Node.js 20+, PostgreSQL or MySQL, and Redis for production use.
+</Warning>
+
+## Docker installation (recommended)
+
+Docker provides the fastest and most reliable way to run Evolution API with all dependencies pre-configured.
+
+### Prerequisites
+
+Ensure you have installed:
+
+- [Docker](https://docs.docker.com/get-docker/) (version 20.10 or higher)
+- [Docker Compose](https://docs.docker.com/compose/install/) (version 2.0 or higher)
+- At least 2GB of available RAM
+- 5GB of free disk space
+
+### Installation steps
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/EvolutionAPI/evolution-api.git
+    cd evolution-api
+    ```
+  </Step>
+
+  <Step title="Configure environment variables">
+    Copy the example environment file:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit `.env` with your preferred text editor. Here are the essential variables:
+
+    ```bash .env
+    # Server Configuration
+    SERVER_NAME=evolution
+    SERVER_TYPE=http
+    SERVER_PORT=8080
+    SERVER_URL=http://localhost:8080
+
+    # Authentication
+    AUTHENTICATION_API_KEY=your-secure-api-key-here
+    AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+
+    # Database Provider: postgresql | mysql
+    DATABASE_PROVIDER=postgresql
+    DATABASE_CONNECTION_URI='postgresql://postgres:postgres@evolution-postgres:5432/evolution_db?schema=evolution_api'
+    DATABASE_CONNECTION_CLIENT_NAME=evolution_exchange
+
+    # Save Data Options
+    DATABASE_SAVE_DATA_INSTANCE=true
+    DATABASE_SAVE_DATA_NEW_MESSAGE=true
+    DATABASE_SAVE_MESSAGE_UPDATE=true
+    DATABASE_SAVE_DATA_CONTACTS=true
+    DATABASE_SAVE_DATA_CHATS=true
+
+    # Redis Cache
+    CACHE_REDIS_ENABLED=true
+    CACHE_REDIS_URI=redis://evolution-redis:6379/6
+    CACHE_REDIS_PREFIX_KEY=evolution
+    CACHE_REDIS_SAVE_INSTANCES=false
+
+    # CORS Configuration
+    CORS_ORIGIN=*
+    CORS_METHODS=GET,POST,PUT,DELETE
+    CORS_CREDENTIALS=true
+
+    # Logging
+    LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,WEBHOOKS
+    LOG_COLOR=true
+    LOG_BAILEYS=error
+
+    # WhatsApp Session
+    CONFIG_SESSION_PHONE_CLIENT=Evolution API
+    CONFIG_SESSION_PHONE_NAME=Chrome
+
+    # QR Code Configuration
+    QRCODE_LIMIT=30
+    QRCODE_COLOR='#175197'
+
+    # Telemetry (optional)
+    TELEMETRY_ENABLED=true
+    ```
+
+    <Accordion title="View all environment variables">
+      Evolution API supports over 100 configuration options. Here are additional important variables:
+
+      **Webhooks:**
+      ```bash
+      WEBHOOK_GLOBAL_ENABLED=false
+      WEBHOOK_GLOBAL_URL=''
+      WEBHOOK_EVENTS_QRCODE_UPDATED=true
+      WEBHOOK_EVENTS_MESSAGES_UPSERT=true
+      WEBHOOK_EVENTS_MESSAGES_UPDATE=true
+      WEBHOOK_EVENTS_CONNECTION_UPDATE=true
+      ```
+
+      **WebSocket:**
+      ```bash
+      WEBSOCKET_ENABLED=false
+      WEBSOCKET_GLOBAL_EVENTS=false
+      ```
+
+      **RabbitMQ:**
+      ```bash
+      RABBITMQ_ENABLED=false
+      RABBITMQ_URI=amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_EXCHANGE_NAME=evolution
+      RABBITMQ_GLOBAL_ENABLED=false
+      ```
+
+      **Apache Kafka:**
+      ```bash
+      KAFKA_ENABLED=false
+      KAFKA_CLIENT_ID=evolution-api
+      KAFKA_BROKERS=kafka:9092
+      KAFKA_TOPIC_PREFIX=evolution
+      ```
+
+      **Amazon SQS:**
+      ```bash
+      SQS_ENABLED=false
+      SQS_ACCESS_KEY_ID=
+      SQS_SECRET_ACCESS_KEY=
+      SQS_ACCOUNT_ID=
+      SQS_REGION=us-east-1
+      ```
+
+      **S3 Storage (Amazon S3 or MinIO):**
+      ```bash
+      S3_ENABLED=false
+      S3_ACCESS_KEY=
+      S3_SECRET_KEY=
+      S3_BUCKET=evolution
+      S3_ENDPOINT=s3.amazonaws.com
+      S3_REGION=us-east-1
+      S3_USE_SSL=true
+      ```
+
+      **OpenAI Integration:**
+      ```bash
+      OPENAI_ENABLED=false
+      ```
+
+      **Chatwoot Integration:**
+      ```bash
+      CHATWOOT_ENABLED=false
+      CHATWOOT_MESSAGE_READ=true
+      CHATWOOT_MESSAGE_DELETE=true
+      CHATWOOT_IMPORT_DATABASE_CONNECTION_URI=
+      ```
+
+      **Typebot Integration:**
+      ```bash
+      TYPEBOT_ENABLED=false
+      TYPEBOT_API_VERSION=latest
+      ```
+
+      **Dify Integration:**
+      ```bash
+      DIFY_ENABLED=false
+      ```
+
+      **Proxy Configuration:**
+      ```bash
+      PROXY_HOST=
+      PROXY_PORT=
+      PROXY_PROTOCOL=http
+      PROXY_USERNAME=
+      PROXY_PASSWORD=
+      ```
+
+      **SSL Configuration:**
+      ```bash
+      SERVER_TYPE=https
+      SSL_CONF_PRIVKEY=/path/to/privkey.pem
+      SSL_CONF_FULLCHAIN=/path/to/fullchain.pem
+      ```
+
+      See the [.env.example](https://github.com/EvolutionAPI/evolution-api/blob/main/.env.example) file for the complete list.
+    </Accordion>
+
+    <Tip>
+      Generate a secure API key: `openssl rand -hex 32`
+    </Tip>
+  </Step>
+
+  <Step title="Configure PostgreSQL credentials">
+    The `docker-compose.yaml` expects PostgreSQL environment variables. Add these to your `.env`:
+
+    ```bash .env
+    # PostgreSQL Configuration
+    POSTGRES_DATABASE=evolution_db
+    POSTGRES_USERNAME=postgres
+    POSTGRES_PASSWORD=your-secure-password-here
+    ```
+
+    Update your database connection URI to match:
+
+    ```bash .env
+    DATABASE_CONNECTION_URI='postgresql://postgres:your-secure-password-here@evolution-postgres:5432/evolution_db?schema=evolution_api'
+    ```
+  </Step>
+
+  <Step title="Start the services">
+    Launch all services with Docker Compose:
+
+    ```bash
+    docker-compose up -d
+    ```
+
+    This creates and starts:
+    - **evolution_api** - Main API server (port 8080)
+    - **evolution_frontend** - Management interface (port 3000)
+    - **evolution_postgres** - PostgreSQL database (port 5432)
+    - **evolution_redis** - Redis cache (port 6379)
+
+    Verify all services are running:
+
+    ```bash
+    docker-compose ps
+    ```
+
+    You should see all containers in "Up" status.
+  </Step>
+
+  <Step title="Verify the installation">
+    Check if the API is responding:
+
+    ```bash
+    curl http://localhost:8080
+    ```
+
+    Access the Evolution Manager interface at:
+
+    ```
+    http://localhost:3000
+    ```
+
+    View API logs:
+
+    ```bash
+    docker-compose logs -f api
+    ```
+  </Step>
+</Steps>
+
+### Docker Compose services
+
+The default `docker-compose.yaml` includes:
+
+<CodeGroup>
+```yaml docker-compose.yaml
+version: "3.8"
+
+services:
+  api:
+    container_name: evolution_api
+    image: evoapicloud/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - evolution-postgres
+
+  frontend:
+    container_name: evolution_frontend
+    image: evoapicloud/evolution-manager:latest
+    restart: always
+    ports:
+      - "3000:80"
+
+  redis:
+    container_name: evolution_redis
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - evolution_redis:/data
+
+  evolution-postgres:
+    container_name: evolution_postgres
+    image: postgres:15
+    restart: always
+    environment:
+      - POSTGRES_DB=${POSTGRES_DATABASE}
+      - POSTGRES_USER=${POSTGRES_USERNAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  evolution_instances:
+  evolution_redis:
+  postgres_data:
+```
+</CodeGroup>
+
+<Note>
+  The Evolution API Docker image is based on `node:24-alpine` and includes ffmpeg for media processing.
+</Note>
+
+## Manual installation (npm)
+
+For development or custom deployments, you can install Evolution API manually using npm.
+
+### Prerequisites
+
+<Steps>
+  <Step title="Install Node.js">
+    Evolution API requires Node.js 20 or higher. We recommend using [nvm](https://github.com/nvm-sh/nvm):
+
+    ```bash
+    # Install nvm
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+
+    # Install Node.js 20
+    nvm install 20
+    nvm use 20
+
+    # Verify installation
+    node --version
+    npm --version
+    ```
+  </Step>
+
+  <Step title="Install system dependencies">
+    Install required system packages:
+
+    **Ubuntu/Debian:**
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y git ffmpeg wget curl
+    ```
+
+    **macOS:**
+    ```bash
+    brew install git ffmpeg wget curl
+    ```
+
+    **CentOS/RHEL:**
+    ```bash
+    sudo yum install -y git ffmpeg wget curl
+    ```
+  </Step>
+
+  <Step title="Install PostgreSQL">
+    Install and configure PostgreSQL:
+
+    **Ubuntu/Debian:**
+    ```bash
+    sudo apt-get install postgresql postgresql-contrib
+    sudo systemctl start postgresql
+    sudo systemctl enable postgresql
+    ```
+
+    **macOS:**
+    ```bash
+    brew install postgresql@15
+    brew services start postgresql@15
+    ```
+
+    Create the database:
+
+    ```bash
+    sudo -u postgres psql
+    ```
+
+    ```sql
+    CREATE DATABASE evolution_db;
+    CREATE USER evolution_user WITH PASSWORD 'your-secure-password';
+    GRANT ALL PRIVILEGES ON DATABASE evolution_db TO evolution_user;
+    \q
+    ```
+  </Step>
+
+  <Step title="Install Redis">
+    Install and start Redis:
+
+    **Ubuntu/Debian:**
+    ```bash
+    sudo apt-get install redis-server
+    sudo systemctl start redis
+    sudo systemctl enable redis
+    ```
+
+    **macOS:**
+    ```bash
+    brew install redis
+    brew services start redis
+    ```
+
+    Verify Redis is running:
+
+    ```bash
+    redis-cli ping
+    # Should return: PONG
+    ```
+  </Step>
+</Steps>
+
+### Installation steps
+
+<Steps>
+  <Step title="Clone and install">
+    ```bash
+    # Clone repository
+    git clone https://github.com/EvolutionAPI/evolution-api.git
+    cd evolution-api
+
+    # Install dependencies
+    npm install
+    ```
+  </Step>
+
+  <Step title="Configure environment">
+    Copy and edit the environment file:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Update the database connection for your local setup:
+
+    ```bash .env
+    DATABASE_PROVIDER=postgresql
+    DATABASE_CONNECTION_URI='postgresql://evolution_user:your-secure-password@localhost:5432/evolution_db?schema=evolution_api'
+    
+    CACHE_REDIS_ENABLED=true
+    CACHE_REDIS_URI=redis://localhost:6379/6
+    
+    AUTHENTICATION_API_KEY=your-secure-api-key-here
+    SERVER_URL=http://localhost:8080
+    ```
+  </Step>
+
+  <Step title="Set database provider">
+    Evolution API supports PostgreSQL and MySQL. Set the provider before running database commands:
+
+    ```bash
+    export DATABASE_PROVIDER=postgresql
+    ```
+
+    Or for MySQL:
+
+    ```bash
+    export DATABASE_PROVIDER=mysql
+    ```
+  </Step>
+
+  <Step title="Generate and deploy database">
+    Generate Prisma client and run migrations:
+
+    ```bash
+    npm run db:generate
+    npm run db:deploy
+    ```
+
+    <Note>
+      The `db:deploy` script automatically selects the correct schema based on your `DATABASE_PROVIDER` environment variable.
+    </Note>
+  </Step>
+
+  <Step title="Build the project">
+    Compile TypeScript to JavaScript:
+
+    ```bash
+    npm run build
+    ```
+
+    This creates the production build in the `dist/` directory.
+  </Step>
+
+  <Step title="Start the server">
+    For development with hot reload:
+
+    ```bash
+    npm run dev:server
+    ```
+
+    For production:
+
+    ```bash
+    npm run start:prod
+    ```
+
+    The API will be available at `http://localhost:8080`
+  </Step>
+</Steps>
+
+### Using the installation script
+
+Evolution API includes an automated installation script for Linux and macOS:
+
+```bash
+chmod +x local_install.sh
+./local_install.sh
+```
+
+For development mode:
+
+```bash
+./local_install.sh -dev
+```
+
+The script automatically:
+- Installs nvm and Node.js 20
+- Installs project dependencies
+- Generates and deploys the database
+- Starts the server
+
+## MySQL configuration
+
+To use MySQL instead of PostgreSQL:
+
+<Steps>
+  <Step title="Install MySQL">
+    **Ubuntu/Debian:**
+    ```bash
+    sudo apt-get install mysql-server
+    sudo systemctl start mysql
+    sudo systemctl enable mysql
+    ```
+
+    **macOS:**
+    ```bash
+    brew install mysql
+    brew services start mysql
+    ```
+  </Step>
+
+  <Step title="Create database">
+    ```bash
+    sudo mysql
+    ```
+
+    ```sql
+    CREATE DATABASE evolution_db;
+    CREATE USER 'evolution_user'@'localhost' IDENTIFIED BY 'your-secure-password';
+    GRANT ALL PRIVILEGES ON evolution_db.* TO 'evolution_user'@'localhost';
+    FLUSH PRIVILEGES;
+    EXIT;
+    ```
+  </Step>
+
+  <Step title="Update environment">
+    ```bash .env
+    DATABASE_PROVIDER=mysql
+    DATABASE_CONNECTION_URI='mysql://evolution_user:your-secure-password@localhost:3306/evolution_db'
+    ```
+  </Step>
+
+  <Step title="Deploy database">
+    ```bash
+    export DATABASE_PROVIDER=mysql
+    npm run db:generate
+    npm run db:deploy
+    ```
+  </Step>
+</Steps>
+
+## Production deployment
+
+For production environments, consider these additional configurations:
+
+### Using process managers
+
+<Tabs>
+  <Tab title="PM2">
+    Install and configure PM2:
+
+    ```bash
+    npm install -g pm2
+
+    # Start Evolution API
+    pm2 start npm --name "evolution-api" -- run start:prod
+
+    # Save PM2 configuration
+    pm2 save
+
+    # Setup PM2 to start on boot
+    pm2 startup
+    ```
+
+    Monitor your application:
+
+    ```bash
+    pm2 status
+    pm2 logs evolution-api
+    pm2 monit
+    ```
+  </Tab>
+
+  <Tab title="systemd">
+    Create a systemd service file:
+
+    ```bash /etc/systemd/system/evolution-api.service
+    [Unit]
+    Description=Evolution API
+    After=network.target postgresql.service redis.service
+
+    [Service]
+    Type=simple
+    User=evolution
+    WorkingDirectory=/opt/evolution-api
+    Environment="NODE_ENV=production"
+    Environment="DATABASE_PROVIDER=postgresql"
+    ExecStart=/usr/bin/npm run start:prod
+    Restart=on-failure
+    RestartSec=10
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+
+    Enable and start the service:
+
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable evolution-api
+    sudo systemctl start evolution-api
+    sudo systemctl status evolution-api
+    ```
+  </Tab>
+</Tabs>
+
+### SSL/HTTPS configuration
+
+To enable HTTPS, update your `.env`:
+
+```bash .env
+SERVER_TYPE=https
+SSL_CONF_PRIVKEY=/path/to/privkey.pem
+SSL_CONF_FULLCHAIN=/path/to/fullchain.pem
+```
+
+<Tip>
+  Use [Let's Encrypt](https://letsencrypt.org/) with [Certbot](https://certbot.eff.org/) to obtain free SSL certificates.
+</Tip>
+
+### Reverse proxy with Nginx
+
+Example Nginx configuration:
+
+```nginx /etc/nginx/sites-available/evolution-api
+server {
+    listen 80;
+    server_name yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+```
+
+Enable the site:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/evolution-api /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Environment-specific settings
+
+<Accordion title="Production environment variables">
+  **Security:**
+  ```bash
+  AUTHENTICATION_API_KEY=<generated-secure-key>
+  CORS_ORIGIN=https://yourdomain.com
+  ```
+
+  **Performance:**
+  ```bash
+  CACHE_REDIS_ENABLED=true
+  CACHE_REDIS_SAVE_INSTANCES=true
+  DATABASE_SAVE_DATA_INSTANCE=true
+  ```
+
+  **Logging:**
+  ```bash
+  LOG_LEVEL=ERROR,WARN,INFO
+  LOG_COLOR=false
+  ```
+
+  **Monitoring:**
+  ```bash
+  PROMETHEUS_METRICS=true
+  METRICS_AUTH_REQUIRED=true
+  METRICS_USER=prometheus
+  METRICS_PASSWORD=<secure-password>
+  SENTRY_DSN=<your-sentry-dsn>
+  ```
+</Accordion>
+
+## Database migrations
+
+When updating Evolution API, you may need to run database migrations:
+
+```bash
+# Set your database provider
+export DATABASE_PROVIDER=postgresql
+
+# Run migrations
+npm run db:deploy
+```
+
+For development (creating new migrations):
+
+```bash
+npm run db:migrate:dev
+```
+
+<Warning>
+  Always backup your database before running migrations in production.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Docker container fails to start">
+    Check container logs:
+
+    ```bash
+    docker-compose logs api
+    docker-compose logs evolution-postgres
+    docker-compose logs redis
+    ```
+
+    Common issues:
+    - Port conflicts: Check if ports 8080, 3000, 5432, or 6379 are already in use
+    - Missing environment variables: Verify all required variables are set in `.env`
+    - Database connection: Ensure PostgreSQL credentials match in both `.env` and `docker-compose.yaml`
+  </Accordion>
+
+  <Accordion title="Database connection errors">
+    Verify database is accessible:
+
+    ```bash
+    # For Docker
+    docker-compose exec evolution-postgres pg_isready
+
+    # For manual installation
+    psql -h localhost -U evolution_user -d evolution_db
+    ```
+
+    Check connection URI format:
+    - PostgreSQL: `postgresql://user:pass@host:5432/database?schema=public`
+    - MySQL: `mysql://user:pass@host:3306/database`
+  </Accordion>
+
+  <Accordion title="Redis connection errors">
+    Test Redis connection:
+
+    ```bash
+    # For Docker
+    docker-compose exec redis redis-cli ping
+
+    # For manual installation
+    redis-cli ping
+    ```
+
+    Verify Redis URI in `.env`:
+    ```bash
+    CACHE_REDIS_URI=redis://localhost:6379/6
+    ```
+  </Accordion>
+
+  <Accordion title="Build failures">
+    If `npm run build` fails:
+
+    1. Clear node modules and reinstall:
+       ```bash
+       rm -rf node_modules package-lock.json
+       npm install
+       ```
+
+    2. Verify Node.js version:
+       ```bash
+       node --version
+       # Should be v20.x.x or higher
+       ```
+
+    3. Check TypeScript compilation:
+       ```bash
+       npx tsc --noEmit
+       ```
+  </Accordion>
+
+  <Accordion title="Port already in use">
+    Change the default port in `.env`:
+
+    ```bash
+    SERVER_PORT=3333
+    SERVER_URL=http://localhost:3333
+    ```
+
+    For Docker, update `docker-compose.yaml`:
+
+    ```yaml
+    ports:
+      - "3333:8080"
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+Now that Evolution API is installed, you can:
+
+<CardGroup cols={2}>
+  <Card title="Create your first instance" icon="mobile" href="/quickstart">
+    Follow the quickstart guide to create a WhatsApp instance
+  </Card>
+
+  <Card title="Configure webhooks" icon="webhook" href="/events/webhooks">
+    Set up webhooks to receive real-time events
+  </Card>
+
+  <Card title="Explore integrations" icon="puzzle-piece" href="/integrations/typebot">
+    Connect with Typebot, Chatwoot, OpenAI, and more
+  </Card>
+
+  <Card title="API documentation" icon="book" href="/api/overview">
+    Explore all available endpoints and features
+  </Card>
+</CardGroup>

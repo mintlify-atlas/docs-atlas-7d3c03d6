@@ -1,0 +1,257 @@
+---
+title: Send Text Message
+description: Send a text message to a WhatsApp number via Evolution API
+---
+
+## Send Text Message
+
+Send a text message to a WhatsApp contact or group. You can include link previews, quoted messages, mentions, and delays.
+
+### Endpoint
+
+```
+POST /message/sendText/:instanceName
+```
+
+### Path Parameters
+
+<ParamField path="instanceName" type="string" required>
+  The name of your WhatsApp instance that you created
+</ParamField>
+
+### Request Body
+
+<ParamField body="number" type="string" required>
+  The recipient's WhatsApp number in international format (without + symbol)
+  
+  Example: `5511999999999` for a Brazilian number
+</ParamField>
+
+<ParamField body="text" type="string" required>
+  The text message content you want to send
+</ParamField>
+
+<ParamField body="delay" type="integer" optional>
+  Delay before sending the message in milliseconds
+  
+  Example: `1000` for 1 second delay
+</ParamField>
+
+<ParamField body="linkPreview" type="boolean" optional>
+  Enable or disable link preview for URLs in the message
+  
+  Default: `true`
+</ParamField>
+
+<ParamField body="quoted" type="object" optional>
+  Quote a previous message by providing its key and message object
+  
+  <expandable title="quoted properties">
+    <ParamField body="quoted.key" type="object" required>
+      <expandable title="key properties">
+        <ParamField body="quoted.key.id" type="string" required>
+          The message ID to quote
+        </ParamField>
+        <ParamField body="quoted.key.remoteJid" type="string" optional>
+          The JID of the chat where the message was sent
+        </ParamField>
+        <ParamField body="quoted.key.fromMe" type="boolean" optional>
+          Whether the quoted message was sent by you
+        </ParamField>
+      </expandable>
+    </ParamField>
+    <ParamField body="quoted.message" type="object" required>
+      The original message object being quoted
+    </ParamField>
+  </expandable>
+</ParamField>
+
+<ParamField body="mentionsEveryOne" type="boolean" optional>
+  Mention all participants in a group (use with caution)
+  
+  Default: `false`
+</ParamField>
+
+<ParamField body="mentioned" type="array" optional>
+  Array of phone numbers to mention in the message. Each number should be a numeric string.
+  
+  Example: `["5511999999999", "5511888888888"]`
+</ParamField>
+
+### Response
+
+<ResponseField name="key" type="object">
+  Message key information
+  
+  <expandable title="key properties">
+    <ResponseField name="key.remoteJid" type="string">
+      The JID of the recipient
+    </ResponseField>
+    <ResponseField name="key.fromMe" type="boolean">
+      Always true for sent messages
+    </ResponseField>
+    <ResponseField name="key.id" type="string">
+      Unique message identifier
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="message" type="object">
+  The sent message object containing the text and metadata
+</ResponseField>
+
+<ResponseField name="messageTimestamp" type="string">
+  Unix timestamp when the message was sent
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Message status (e.g., "PENDING", "SENT")
+</ResponseField>
+
+### Code Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://your-api-url.com/message/sendText/my-instance \
+  -H "Content-Type: application/json" \
+  -H "apikey: YOUR_API_KEY" \
+  -d '{
+    "number": "5511999999999",
+    "text": "Hello! This is a test message from Evolution API."
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://your-api-url.com/message/sendText/my-instance', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': 'YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    number: '5511999999999',
+    text: 'Hello! This is a test message from Evolution API.'
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+```python Python
+import requests
+
+url = 'https://your-api-url.com/message/sendText/my-instance'
+headers = {
+    'Content-Type': 'application/json',
+    'apikey': 'YOUR_API_KEY'
+}
+payload = {
+    'number': '5511999999999',
+    'text': 'Hello! This is a test message from Evolution API.'
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())
+```
+
+```php PHP
+<?php
+$curl = curl_init();
+
+curl_setopt_array($curl, [
+  CURLOPT_URL => 'https://your-api-url.com/message/sendText/my-instance',
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_ENCODING => '',
+  CURLOPT_MAXREDIRS => 10,
+  CURLOPT_TIMEOUT => 0,
+  CURLOPT_FOLLOWLOCATION => true,
+  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+  CURLOPT_CUSTOMREQUEST => 'POST',
+  CURLOPT_POSTFIELDS => json_encode([
+    'number' => '5511999999999',
+    'text' => 'Hello! This is a test message from Evolution API.'
+  ]),
+  CURLOPT_HTTPHEADER => [
+    'Content-Type: application/json',
+    'apikey: YOUR_API_KEY'
+  ],
+]);
+
+$response = curl_exec($curl);
+curl_close($curl);
+echo $response;
+?>
+```
+
+</CodeGroup>
+
+### Advanced Examples
+
+<Accordion title="Send text with mentions">
+```json
+{
+  "number": "5511999999999",
+  "text": "Hey @5511888888888, check this out!",
+  "mentioned": ["5511888888888"]
+}
+```
+</Accordion>
+
+<Accordion title="Send text with quoted message">
+```json
+{
+  "number": "5511999999999",
+  "text": "Replying to your previous message",
+  "quoted": {
+    "key": {
+      "id": "BAE5F2D3E4F5A6B7",
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false
+    },
+    "message": {
+      "conversation": "Original message text"
+    }
+  }
+}
+```
+</Accordion>
+
+<Accordion title="Send text with delay and link preview">
+```json
+{
+  "number": "5511999999999",
+  "text": "Check out this link: https://evolution-api.com",
+  "linkPreview": true,
+  "delay": 2000
+}
+```
+</Accordion>
+
+## Error Responses
+
+<Warning>
+  Make sure your instance is connected before sending messages. Use the instance status endpoint to verify connection.
+</Warning>
+
+<ResponseField name="status" type="number">
+  HTTP status code
+</ResponseField>
+
+<ResponseField name="message" type="string">
+  Error description
+</ResponseField>
+
+### Common Errors
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid payload or missing required fields |
+| 401 | Unauthorized - Invalid or missing API key |
+| 404 | Not Found - Instance does not exist |
+| 500 | Internal Server Error - Server-side error |
+
+<Note>
+  The `number` field should contain only digits in international format without the + symbol. For example, use `5511999999999` instead of `+55 11 99999-9999`.
+</Note>

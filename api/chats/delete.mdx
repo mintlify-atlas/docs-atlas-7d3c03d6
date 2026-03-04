@@ -1,0 +1,173 @@
+---
+title: 'Delete Message'
+api: 'DELETE /chat/deleteMessageForEveryone/:instanceName'
+description: 'Delete a message for everyone in a chat.'
+---
+
+## Overview
+
+You can delete messages from a chat for all participants. This works similar to the "Delete for Everyone" feature in WhatsApp.
+
+<Warning>
+  Deleted messages cannot be recovered. This action is permanent for all chat participants.
+</Warning>
+
+<Note>
+  WhatsApp has a time limit for deleting messages (typically around 2 days). Messages older than this limit cannot be deleted for everyone.
+</Note>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+<ParamField body="id" type="string" required>
+  The unique message ID to delete.
+</ParamField>
+
+<ParamField body="remoteJid" type="string" required>
+  The WhatsApp JID of the chat containing the message.
+</ParamField>
+
+<ParamField body="fromMe" type="boolean" required>
+  Whether the message was sent by you. Set to `true` for messages you sent, `false` for received messages.
+</ParamField>
+
+<ParamField body="participant" type="string">
+  For group chats only: the JID of the participant who sent the message. Required when deleting group messages.
+</ParamField>
+
+## Response
+
+<ResponseField name="deleted" type="boolean">
+  Confirmation that the message was deleted.
+</ResponseField>
+
+<ResponseField name="messageId" type="string">
+  The ID of the deleted message.
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL (Individual Chat)
+curl --request DELETE \
+  --url https://api.example.com/chat/deleteMessageForEveryone/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "id": "3EB0123456789ABCDEF",
+    "remoteJid": "5511999999999@s.whatsapp.net",
+    "fromMe": true
+  }'
+```
+
+```bash cURL (Group Chat)
+curl --request DELETE \
+  --url https://api.example.com/chat/deleteMessageForEveryone/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "id": "3EB0123456789ABCDEF",
+    "remoteJid": "120363123456789@g.us",
+    "fromMe": true,
+    "participant": "5511999999999@s.whatsapp.net"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.example.com/chat/deleteMessageForEveryone/my-instance',
+  {
+    method: 'DELETE',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      id: '3EB0123456789ABCDEF',
+      remoteJid: '5511999999999@s.whatsapp.net',
+      fromMe: true
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.delete(
+    'https://api.example.com/chat/deleteMessageForEveryone/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'id': '3EB0123456789ABCDEF',
+        'remoteJid': '5511999999999@s.whatsapp.net',
+        'fromMe': True
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Success
+{
+  "deleted": true,
+  "messageId": "3EB0123456789ABCDEF"
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid request",
+  "message": "Missing required field: id"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized",
+  "message": "Invalid API key"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Message not found",
+  "message": "The specified message does not exist or cannot be deleted"
+}
+```
+
+</ResponseExample>
+
+## Usage Notes
+
+<Info>
+  You can only delete messages that you sent (`fromMe: true`). Attempting to delete messages sent by others will fail.
+</Info>
+
+<Tip>
+  For group messages, always include the `participant` field to specify who sent the message.
+</Tip>
+
+<Warning>
+  If the message is older than WhatsApp's deletion time limit (approximately 2 days), the deletion will fail.
+</Warning>

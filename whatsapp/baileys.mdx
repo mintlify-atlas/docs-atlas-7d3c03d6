@@ -1,0 +1,367 @@
+---
+title: 'Baileys Provider'
+description: 'Use WhatsApp Web API with QR code authentication for free WhatsApp integration'
+---
+
+## Overview
+
+Baileys is a free, open-source WhatsApp Web API implementation that lets you connect to WhatsApp without official business API credentials. It works by emulating the WhatsApp Web client and uses QR code scanning for authentication.
+
+<Note>
+Baileys connects through WhatsApp Web, making it perfect for personal use, testing, or applications that don't require official Meta Business API credentials.
+</Note>
+
+## How It Works
+
+Baileys establishes a WebSocket connection to WhatsApp servers by:
+
+1. Generating a QR code or pairing code for authentication
+2. Maintaining a persistent session with encrypted credentials
+3. Synchronizing messages, contacts, and chat history
+4. Handling reconnections automatically
+
+## Authentication Methods
+
+<Tabs>
+  <Tab title="QR Code">
+    The default authentication method displays a QR code that you scan with your WhatsApp mobile app.
+
+    ```bash
+    # Configure in .env
+    QRCODE_LIMIT=30
+    QRCODE_COLOR='#175197'
+    ```
+
+    ### QR Code Configuration
+
+    - **QRCODE_LIMIT**: Maximum number of QR code regenerations before timeout (default: 30)
+    - **QRCODE_COLOR**: HEX color for the QR code dark pixels (default: '#175197')
+
+    When you create an instance, the API generates a QR code accessible via webhook events:
+
+    ```json
+    {
+      "event": "qrcode.updated",
+      "qrcode": {
+        "instance": "my-instance",
+        "code": "2@abc123...",
+        "base64": "data:image/png;base64,iVBOR..."
+      }
+    }
+    ```
+  </Tab>
+  <Tab title="Pairing Code">
+    Alternatively, use a phone number to receive a pairing code directly in WhatsApp.
+
+    ```bash
+    POST /instance/connect
+    ```
+
+    ```json
+    {
+      "instanceName": "my-instance",
+      "number": "5511999999999"
+    }
+    ```
+
+    Response includes a pairing code:
+
+    ```json
+    {
+      "qrcode": {
+        "pairingCode": "ABCD-1234",
+        "instance": "my-instance"
+      }
+    }
+    ```
+
+    <Warning>
+    Enter the pairing code in WhatsApp > Linked Devices within 1 minute before it expires.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Session Configuration
+
+Configure how your instance appears in WhatsApp's "Linked Devices":
+
+```bash .env
+# Name displayed on smartphone connection
+CONFIG_SESSION_PHONE_CLIENT=Evolution API
+
+# Browser type: Chrome | Firefox | Edge | Opera | Safari
+CONFIG_SESSION_PHONE_NAME=Chrome
+```
+
+These settings determine how your connection appears in WhatsApp:
+
+<CodeGroup>
+```typescript whatsapp.baileys.service.ts
+const session = this.configService.get<ConfigSessionPhone>('CONFIG_SESSION_PHONE');
+
+if (number || this.phoneNumber) {
+  this.phoneNumber = number;
+} else {
+  const browser: WABrowserDescription = [session.CLIENT, session.NAME, release()];
+  browserOptions = { browser };
+}
+```
+</CodeGroup>
+
+## Connection Lifecycle
+
+<Steps>
+  <Step title="Initialize Connection">
+    Create an instance to start the connection process:
+
+    ```bash
+    POST /instance/create
+    ```
+
+    ```json
+    {
+      "instanceName": "my-instance",
+      "token": "your-api-key"
+    }
+    ```
+  </Step>
+
+  <Step title="Authenticate">
+    Scan the QR code or enter the pairing code in WhatsApp. The API monitors authentication status and emits connection events:
+
+    ```typescript
+    // Connection states tracked in source
+    public stateConnection: wa.StateConnection = { state: 'close' };
+
+    // States: 'connecting' | 'open' | 'close'
+    ```
+  </Step>
+
+  <Step title="Session Persistence">
+    Evolution API automatically saves your session to prevent re-authentication:
+
+    - **Database**: Prisma stores encrypted credentials
+    - **Redis**: Optional caching layer for faster reconnections
+    - **File Provider**: Alternative storage backend
+
+    ```typescript
+    // Session storage is automatic
+    if (cache?.REDIS.ENABLED && cache?.REDIS.SAVE_INSTANCES) {
+      return await useMultiFileAuthStateRedisDb(this.instance.id, this.cache);
+    }
+    
+    if (db.SAVE_DATA.INSTANCE) {
+      return await useMultiFileAuthStatePrisma(this.instance.id, this.cache);
+    }
+    ```
+  </Step>
+
+  <Step title="Reconnection Handling">
+    The API automatically reconnects on disconnection, except for:
+
+    - Logout (code 401)
+    - Forbidden/banned account (code 403)
+    - Payment required (code 402)
+    - Invalid session (code 406)
+
+    ```typescript
+    const codesToNotReconnect = [
+      DisconnectReason.loggedOut,
+      DisconnectReason.forbidden,
+      402,
+      406
+    ];
+    const shouldReconnect = !codesToNotReconnect.includes(statusCode);
+    ```
+  </Step>
+</Steps>
+
+## Connection Events
+
+Monitor connection status through webhook events:
+
+```json
+{
+  "event": "connection.update",
+  "instance": "my-instance",
+  "state": "open",
+  "statusReason": 200,
+  "wuid": "5511999999999@s.whatsapp.net",
+  "profileName": "John Doe",
+  "profilePictureUrl": "https://..."
+}
+```
+
+### Connection States
+
+| State | Description |
+|-------|-------------|
+| `connecting` | Establishing connection to WhatsApp servers |
+| `open` | Successfully connected and authenticated |
+| `close` | Disconnected (may attempt reconnection) |
+
+## Features
+
+### Message Synchronization
+
+Baileys supports full history sync when enabled:
+
+```bash .env
+# Sync full message history on first connection
+SYNC_FULL_HISTORY=true
+```
+
+### Group Support
+
+Control whether to ignore group messages:
+
+```bash
+# Settings can be configured per instance
+{
+  "groupsIgnore": false,
+  "alwaysOnline": true,
+  "readMessages": false,
+  "readStatus": false,
+  "syncFullHistory": true
+}
+```
+
+<Tip>
+Set `groupsIgnore: true` to reduce message volume if you only need direct messages.
+</Tip>
+
+### Media Handling
+
+Baileys automatically downloads and processes media messages:
+
+```typescript
+const isMedia = received?.message?.imageMessage ||
+                received?.message?.videoMessage ||
+                received?.message?.stickerMessage ||
+                received?.message?.documentMessage ||
+                received?.message?.audioMessage;
+```
+
+## Limitations vs Business API
+
+<Warning>
+Baileys has important limitations compared to the official Business API:
+</Warning>
+
+| Feature | Baileys | Business API |
+|---------|---------|-------------|
+| Cost | Free | Paid per conversation |
+| Authentication | QR code/pairing | API credentials |
+| Rate limits | WhatsApp Web limits | Higher API limits |
+| Ban risk | Possible if misused | Lower risk |
+| Message templates | Not supported | Supported |
+| Official support | Community | Meta support |
+| Multi-device | Limited | Full support |
+| Business features | Basic | Advanced (catalogs, etc.) |
+
+### Best Practices
+
+<Steps>
+  <Step title="Avoid Spam">
+    Don't send bulk messages or automated spam. This can get your number banned from WhatsApp.
+  </Step>
+
+  <Step title="Rate Limiting">
+    Implement delays between messages to avoid detection:
+
+    ```json
+    {
+      "number": "5511999999999",
+      "text": "Hello!",
+      "delay": 1200
+    }
+    ```
+  </Step>
+
+  <Step title="Session Backup">
+    Regularly backup your session data to avoid re-authentication if the instance is deleted.
+  </Step>
+
+  <Step title="Monitor Connection">
+    Subscribe to `connection.update` webhooks to handle disconnections gracefully.
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### QR Code Not Appearing
+
+Check your webhook configuration and ensure events are enabled:
+
+```bash .env
+WEBHOOK_EVENTS_QRCODE_UPDATED=true
+```
+
+### Connection Keeps Closing
+
+Verify your session is being saved:
+
+```bash .env
+DATABASE_SAVE_DATA_INSTANCE=true
+```
+
+### Messages Not Syncing
+
+Enable full history sync and check group settings:
+
+```typescript
+{
+  "syncFullHistory": true,
+  "groupsIgnore": false
+}
+```
+
+## Advanced Configuration
+
+### Proxy Support
+
+Configure proxy settings for Baileys connections:
+
+```bash .env
+PROXY_HOST=proxy.example.com
+PROXY_PORT=8080
+PROXY_PROTOCOL=http
+PROXY_USERNAME=user
+PROXY_PASSWORD=pass
+```
+
+### Custom Baileys Version
+
+The API automatically fetches the latest WhatsApp Web version:
+
+```typescript
+const baileysVersion = await fetchLatestWaWebVersion({});
+const version = baileysVersion.version;
+// Baileys version: [2, 3000, 1234567890]
+```
+
+### Logging
+
+Control Baileys log output:
+
+```bash .env
+# Log levels: fatal | error | warn | info | debug | trace
+LOG_BAILEYS=error
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Send Messages" icon="paper-plane" href="/api/messages/send-text">
+    Learn how to send text, media, and interactive messages
+  </Card>
+  <Card title="Receive Messages" icon="inbox" href="/events/webhooks">
+    Set up webhooks to receive messages and events
+  </Card>
+  <Card title="Connection Management" icon="link" href="/whatsapp/connections">
+    Master connection lifecycle and reconnection strategies
+  </Card>
+  <Card title="Business API" icon="building" href="/whatsapp/business-api">
+    Compare with official WhatsApp Business API
+  </Card>
+</CardGroup>

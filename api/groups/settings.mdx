@@ -1,0 +1,231 @@
+---
+title: 'Update Group Settings'
+api: 'POST /group/updateSetting/:instanceName'
+description: 'Configure group messaging and editing permissions.'
+---
+
+## Overview
+
+You can control who can send messages and edit group information. This includes setting the group to announcement-only mode or restricting who can change group settings.
+
+<Info>
+  Only group admins can modify group settings.
+</Info>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+<ParamField body="groupJid" type="string" required>
+  The WhatsApp group JID (can be provided with or without the `@g.us` suffix).
+</ParamField>
+
+<ParamField body="action" type="string" required>
+  The setting to change. Must be one of:
+  - `announcement`: Only admins can send messages (enable announcement mode)
+  - `not_announcement`: All members can send messages (disable announcement mode)
+  - `locked`: Only admins can edit group info (subject, description, picture)
+  - `unlocked`: All members can edit group info
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Whether the setting was updated successfully.
+</ResponseField>
+
+<ResponseField name="groupJid" type="string">
+  The group's WhatsApp JID.
+</ResponseField>
+
+<ResponseField name="action" type="string">
+  The action that was performed.
+</ResponseField>
+
+<ResponseField name="announce" type="boolean">
+  Current announcement mode status.
+</ResponseField>
+
+<ResponseField name="restrict" type="boolean">
+  Current restriction status for editing group info.
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL (Enable Announcement Mode)
+curl --request POST \
+  --url https://api.example.com/group/updateSetting/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "groupJid": "120363123456789@g.us",
+    "action": "announcement"
+  }'
+```
+
+```bash cURL (Lock Group Info)
+curl --request POST \
+  --url https://api.example.com/group/updateSetting/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "groupJid": "120363123456789@g.us",
+    "action": "locked"
+  }'
+```
+
+```javascript JavaScript
+// Enable announcement mode (only admins can send messages)
+const response = await fetch(
+  'https://api.example.com/group/updateSetting/my-instance',
+  {
+    method: 'POST',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      groupJid: '120363123456789@g.us',
+      action: 'announcement'
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+# Allow all members to edit group info
+response = requests.post(
+    'https://api.example.com/group/updateSetting/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'groupJid': '120363123456789@g.us',
+        'action': 'unlocked'
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Success (Announcement Enabled)
+{
+  "success": true,
+  "groupJid": "120363123456789@g.us",
+  "action": "announcement",
+  "announce": true,
+  "restrict": true
+}
+```
+
+```json 201 Success (Group Info Unlocked)
+{
+  "success": true,
+  "groupJid": "120363123456789@g.us",
+  "action": "unlocked",
+  "announce": false,
+  "restrict": false
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid action",
+  "message": "Action must be one of: announcement, not_announcement, locked, unlocked"
+}
+```
+
+```json 403 Forbidden
+{
+  "error": "Insufficient permissions",
+  "message": "You must be a group admin to change group settings"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Group not found",
+  "message": "The specified group does not exist"
+}
+```
+
+</ResponseExample>
+
+## Setting Explanations
+
+### Announcement Mode
+
+<Tabs>
+  <Tab title="announcement">
+    When enabled, only group admins can send messages. Regular members can only read messages. This is useful for broadcast-style groups where you want to limit who can post.
+  </Tab>
+  <Tab title="not_announcement">
+    When disabled, all group members can send messages. This is the default setting for most groups.
+  </Tab>
+</Tabs>
+
+### Group Info Editing
+
+<Tabs>
+  <Tab title="locked">
+    When locked, only admins can change the group subject (name), description, and profile picture. Regular members cannot edit these settings.
+  </Tab>
+  <Tab title="unlocked">
+    When unlocked, all members can change the group subject, description, and profile picture.
+  </Tab>
+</Tabs>
+
+## Usage Notes
+
+<Tip>
+  Combining `announcement` mode with `locked` settings creates a fully admin-controlled group where only admins can post and edit.
+</Tip>
+
+<Info>
+  These settings don't affect the ability to add or remove participants, which always requires admin permissions.
+</Info>
+
+## Additional Endpoints
+
+### Toggle Disappearing Messages
+
+To configure disappearing messages (ephemeral mode):
+
+```
+POST /group/toggleEphemeral/:instanceName
+```
+
+Request body:
+```json
+{
+  "groupJid": "120363123456789@g.us",
+  "expiration": 86400
+}
+```
+
+Expiration values:
+- `0`: Disabled (messages don't disappear)
+- `86400`: 24 hours (1 day)
+- `604800`: 7 days
+- `7776000`: 90 days

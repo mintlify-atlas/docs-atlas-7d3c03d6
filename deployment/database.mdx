@@ -1,0 +1,573 @@
+---
+title: Database Configuration
+description: Configure PostgreSQL or MySQL database for Evolution API
+---
+
+Evolution API requires a database to store instance data, messages, contacts, and configuration. This guide covers database setup, connection configuration, and schema management.
+
+## Supported Databases
+
+Evolution API supports three database configurations:
+
+- **PostgreSQL** - Recommended for production deployments
+- **MySQL** - Alternative for MySQL-based infrastructures
+- **PostgreSQL with PgBouncer** - For high-concurrency deployments
+
+## Database Provider
+
+Set the database provider in your `.env` file:
+
+<ResponseField name="DATABASE_PROVIDER" type="enum" required>
+  Database provider to use. Options:
+  - `postgresql` - Standard PostgreSQL connection
+  - `mysql` - MySQL/MariaDB connection
+  - `psql_bouncer` - PostgreSQL with PgBouncer connection pooling
+  
+  ```bash
+  DATABASE_PROVIDER=postgresql
+  ```
+</ResponseField>
+
+## PostgreSQL Setup
+
+### Installation
+
+<Tabs>
+  <Tab title="Docker">
+    Use the official PostgreSQL Docker image:
+    
+    ```bash
+    docker run -d \
+      --name evolution_postgres \
+      -e POSTGRES_DB=evolution_db \
+      -e POSTGRES_USER=evolution \
+      -e POSTGRES_PASSWORD=your_secure_password \
+      -p 5432:5432 \
+      -v postgres_data:/var/lib/postgresql/data \
+      postgres:15
+    ```
+  </Tab>
+  
+  <Tab title="Ubuntu/Debian">
+    Install PostgreSQL from the official repository:
+    
+    ```bash
+    # Add PostgreSQL repository
+    sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+    wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+    
+    # Install PostgreSQL
+    sudo apt update
+    sudo apt install -y postgresql-15
+    
+    # Create database and user
+    sudo -u postgres psql -c "CREATE DATABASE evolution_db;"
+    sudo -u postgres psql -c "CREATE USER evolution WITH PASSWORD 'your_secure_password';"
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE evolution_db TO evolution;"
+    ```
+  </Tab>
+  
+  <Tab title="macOS">
+    Install PostgreSQL using Homebrew:
+    
+    ```bash
+    # Install PostgreSQL
+    brew install postgresql@15
+    
+    # Start PostgreSQL service
+    brew services start postgresql@15
+    
+    # Create database and user
+    createdb evolution_db
+    psql evolution_db -c "CREATE USER evolution WITH PASSWORD 'your_secure_password';"
+    psql evolution_db -c "GRANT ALL PRIVILEGES ON DATABASE evolution_db TO evolution;"
+    ```
+  </Tab>
+</Tabs>
+
+### Connection URI Format
+
+Configure the PostgreSQL connection in your `.env` file:
+
+```bash
+DATABASE_PROVIDER=postgresql
+DATABASE_CONNECTION_URI='postgresql://user:password@host:port/database?schema=schema_name'
+```
+
+**Example:**
+
+```bash
+DATABASE_CONNECTION_URI='postgresql://evolution:your_password@localhost:5432/evolution_db?schema=evolution_api'
+```
+
+**URI Components:**
+- `evolution` - Database username
+- `your_password` - Database password
+- `localhost` - Database host (use container name in Docker)
+- `5432` - PostgreSQL port
+- `evolution_db` - Database name
+- `evolution_api` - Prisma schema name
+
+### Performance Tuning
+
+For production deployments, optimize PostgreSQL configuration:
+
+```sql
+-- Increase max connections
+ALTER SYSTEM SET max_connections = 1000;
+
+-- Optimize for Evolution API workload
+ALTER SYSTEM SET shared_buffers = '256MB';
+ALTER SYSTEM SET effective_cache_size = '1GB';
+ALTER SYSTEM SET maintenance_work_mem = '64MB';
+ALTER SYSTEM SET checkpoint_completion_target = 0.9;
+ALTER SYSTEM SET wal_buffers = '16MB';
+ALTER SYSTEM SET default_statistics_target = 100;
+ALTER SYSTEM SET random_page_cost = 1.1;
+
+-- Reload configuration
+SELECT pg_reload_conf();
+```
+
+## MySQL Setup
+
+### Installation
+
+<Tabs>
+  <Tab title="Docker">
+    Use the official MySQL Docker image:
+    
+    ```bash
+    docker run -d \
+      --name evolution_mysql \
+      -e MYSQL_DATABASE=evolution_db \
+      -e MYSQL_USER=evolution \
+      -e MYSQL_PASSWORD=your_secure_password \
+      -e MYSQL_ROOT_PASSWORD=root_password \
+      -p 3306:3306 \
+      -v mysql_data:/var/lib/mysql \
+      mysql:8
+    ```
+  </Tab>
+  
+  <Tab title="Ubuntu/Debian">
+    Install MySQL from the official repository:
+    
+    ```bash
+    # Install MySQL
+    sudo apt update
+    sudo apt install -y mysql-server
+    
+    # Secure installation
+    sudo mysql_secure_installation
+    
+    # Create database and user
+    sudo mysql -e "CREATE DATABASE evolution_db;"
+    sudo mysql -e "CREATE USER 'evolution'@'%' IDENTIFIED BY 'your_secure_password';"
+    sudo mysql -e "GRANT ALL PRIVILEGES ON evolution_db.* TO 'evolution'@'%';"
+    sudo mysql -e "FLUSH PRIVILEGES;"
+    ```
+  </Tab>
+</Tabs>
+
+### Connection URI Format
+
+Configure the MySQL connection in your `.env` file:
+
+```bash
+DATABASE_PROVIDER=mysql
+DATABASE_CONNECTION_URI='mysql://user:password@host:port/database'
+```
+
+**Example:**
+
+```bash
+DATABASE_CONNECTION_URI='mysql://evolution:your_password@localhost:3306/evolution_db'
+```
+
+## PgBouncer Configuration
+
+PgBouncer provides connection pooling for high-concurrency deployments.
+
+### Setup with Docker Compose
+
+```yaml docker-compose.yaml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: evolution_db
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: your_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DATABASE_URL: postgres://evolution:your_password@postgres:5432/evolution_db
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 20
+    depends_on:
+      - postgres
+    ports:
+      - "5432:5432"
+```
+
+### Connection Configuration
+
+Use both connection URIs when using PgBouncer:
+
+```bash
+DATABASE_PROVIDER=psql_bouncer
+DATABASE_CONNECTION_URI='postgresql://evolution:your_password@postgres:5432/evolution_db?schema=evolution_api'
+DATABASE_BOUNCER_CONNECTION_URI='postgresql://evolution:your_password@pgbouncer:5432/evolution_db?pgbouncer=true&schema=evolution_api'
+```
+
+## Database Migrations
+
+Evolution API uses Prisma for database schema management.
+
+### Environment Setup
+
+<Warning>
+  Always set `DATABASE_PROVIDER` before running migration commands.
+</Warning>
+
+```bash
+# Set database provider
+export DATABASE_PROVIDER=postgresql  # or mysql
+```
+
+### Generate Prisma Client
+
+Generate the Prisma client for your database provider:
+
+```bash
+npm run db:generate
+```
+
+This reads the schema from:
+- `prisma/postgresql-schema.prisma` for PostgreSQL
+- `prisma/mysql-schema.prisma` for MySQL
+
+### Run Migrations
+
+<Tabs>
+  <Tab title="Development">
+    For development environments:
+    
+    ```bash
+    # Unix/Linux/macOS
+    npm run db:migrate:dev
+    
+    # Windows
+    npm run db:migrate:dev:win
+    ```
+    
+    This creates migration files and applies them to the database.
+  </Tab>
+  
+  <Tab title="Production">
+    For production deployments:
+    
+    ```bash
+    # Unix/Linux/macOS
+    npm run db:deploy
+    
+    # Windows
+    npm run db:deploy:win
+    ```
+    
+    This applies pending migrations without creating new ones.
+  </Tab>
+</Tabs>
+
+### Docker Automatic Migrations
+
+When using the official Docker image, migrations run automatically on startup:
+
+```dockerfile
+ENTRYPOINT ["/bin/bash", "-c", ". ./Docker/scripts/deploy_database.sh && npm run start:prod" ]
+```
+
+The `deploy_database.sh` script:
+1. Detects the database provider from `DATABASE_PROVIDER`
+2. Generates the correct Prisma client
+3. Runs pending migrations
+4. Starts the application
+
+## Database Schema
+
+Evolution API's database schema includes tables for:
+
+### Core Tables
+
+**Instance** - WhatsApp instance information
+```prisma
+model Instance {
+  id                      String                   @id @default(cuid())
+  name                    String                   @unique
+  connectionStatus        InstanceConnectionStatus @default(open)
+  ownerJid                String?
+  profileName             String?
+  profilePicUrl           String?
+  number                  String?
+  token                   String?
+  createdAt               DateTime?                @default(now())
+  updatedAt               DateTime?                @updatedAt
+}
+```
+
+**Message** - WhatsApp messages
+```prisma
+model Message {
+  id                           String          @id @default(cuid())
+  key                          Json
+  pushName                     String?
+  messageType                  String
+  message                      Json
+  messageTimestamp             Int
+  instanceId                   String
+  Instance                     Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+}
+```
+
+**Contact** - WhatsApp contacts
+```prisma
+model Contact {
+  id            String    @id @default(cuid())
+  remoteJid     String
+  pushName      String?
+  profilePicUrl String?
+  instanceId    String
+  Instance      Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+}
+```
+
+**Chat** - WhatsApp conversations
+```prisma
+model Chat {
+  id             String    @id @default(cuid())
+  remoteJid      String
+  name           String?
+  unreadMessages Int       @default(0)
+  instanceId     String
+  Instance       Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+}
+```
+
+### Integration Tables
+
+- **Webhook** - Webhook configurations
+- **Chatwoot** - Chatwoot CRM integration
+- **Typebot** - Typebot chatbot integration
+- **OpenaiBot** - OpenAI chatbot integration
+- **Dify** - Dify AI integration
+- **Rabbitmq** - RabbitMQ event configuration
+- **Sqs** - AWS SQS event configuration
+- **Websocket** - WebSocket event configuration
+
+### Prisma Studio
+
+Browse and edit your database with Prisma Studio:
+
+```bash
+npm run db:studio
+```
+
+This opens a web interface at `http://localhost:5555` for database management.
+
+## Data Storage Options
+
+Control what data is saved to the database:
+
+```bash .env
+# Save all data types (recommended)
+DATABASE_SAVE_DATA_INSTANCE=true
+DATABASE_SAVE_DATA_NEW_MESSAGE=true
+DATABASE_SAVE_MESSAGE_UPDATE=true
+DATABASE_SAVE_DATA_CONTACTS=true
+DATABASE_SAVE_DATA_CHATS=true
+DATABASE_SAVE_DATA_LABELS=true
+DATABASE_SAVE_DATA_HISTORIC=true
+
+# WhatsApp number verification cache
+DATABASE_SAVE_IS_ON_WHATSAPP=true
+DATABASE_SAVE_IS_ON_WHATSAPP_DAYS=7
+
+# Delete messages when deleted in WhatsApp
+DATABASE_DELETE_MESSAGE=true
+```
+
+<Note>
+  Disabling data storage options reduces database size but limits API functionality like message history and contact retrieval.
+</Note>
+
+## Client Name Separation
+
+When running multiple Evolution API installations on the same database:
+
+```bash
+DATABASE_CONNECTION_CLIENT_NAME=evolution_exchange
+```
+
+This separates data between installations sharing the same database instance.
+
+## Backup and Restore
+
+### PostgreSQL Backup
+
+```bash
+# Backup database
+pg_dump -U evolution -h localhost evolution_db > backup.sql
+
+# Backup with Docker
+docker exec evolution_postgres pg_dump -U evolution evolution_db > backup.sql
+
+# Restore database
+psql -U evolution -h localhost evolution_db < backup.sql
+
+# Restore with Docker
+docker exec -i evolution_postgres psql -U evolution evolution_db < backup.sql
+```
+
+### MySQL Backup
+
+```bash
+# Backup database
+mysqldump -u evolution -p evolution_db > backup.sql
+
+# Backup with Docker
+docker exec evolution_mysql mysqldump -u evolution -p evolution_db > backup.sql
+
+# Restore database
+mysql -u evolution -p evolution_db < backup.sql
+
+# Restore with Docker
+docker exec -i evolution_mysql mysql -u evolution -p evolution_db < backup.sql
+```
+
+### Automated Backups
+
+Set up automated daily backups with cron:
+
+```bash
+# Add to crontab
+0 2 * * * /usr/bin/docker exec evolution_postgres pg_dump -U evolution evolution_db | gzip > /backups/evolution-$(date +\%Y\%m\%d).sql.gz
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection refused errors">
+    If Evolution API cannot connect to the database:
+    
+    1. Verify the database is running:
+       ```bash
+       docker ps | grep postgres
+       # or
+       sudo systemctl status postgresql
+       ```
+    
+    2. Check connection URI format is correct
+    3. Verify username and password
+    4. Ensure the database exists:
+       ```bash
+       psql -U evolution -l
+       ```
+    
+    5. Check firewall rules allow connections on port 5432/3306
+  </Accordion>
+  
+  <Accordion title="Migration errors">
+    If migrations fail:
+    
+    1. Ensure `DATABASE_PROVIDER` is set correctly:
+       ```bash
+       echo $DATABASE_PROVIDER
+       ```
+    
+    2. Verify database connection before running migrations:
+       ```bash
+       psql -U evolution -h localhost -d evolution_db -c "SELECT 1;"
+       ```
+    
+    3. Check migration files exist:
+       ```bash
+       ls prisma/postgresql-migrations/
+       ```
+    
+    4. Reset migrations (development only):
+       ```bash
+       npx prisma migrate reset
+       ```
+  </Accordion>
+  
+  <Accordion title="Authentication failed errors">
+    For authentication errors:
+    
+    1. Verify username and password in connection URI
+    2. Check user permissions:
+       ```sql
+       -- PostgreSQL
+       \du evolution
+       
+       -- MySQL
+       SHOW GRANTS FOR 'evolution'@'%';
+       ```
+    
+    3. Ensure user has necessary privileges:
+       ```sql
+       -- PostgreSQL
+       GRANT ALL PRIVILEGES ON DATABASE evolution_db TO evolution;
+       
+       -- MySQL
+       GRANT ALL PRIVILEGES ON evolution_db.* TO 'evolution'@'%';
+       FLUSH PRIVILEGES;
+       ```
+  </Accordion>
+  
+  <Accordion title="Slow query performance">
+    To optimize query performance:
+    
+    1. Enable query logging:
+       ```sql
+       -- PostgreSQL
+       ALTER SYSTEM SET log_min_duration_statement = 1000;
+       SELECT pg_reload_conf();
+       ```
+    
+    2. Analyze slow queries:
+       ```sql
+       EXPLAIN ANALYZE SELECT * FROM "Message" WHERE "instanceId" = 'xxx';
+       ```
+    
+    3. Create indexes for frequently queried columns
+    4. Increase shared_buffers and effective_cache_size
+    5. Consider using PgBouncer for connection pooling
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+1. **Use strong passwords** - Generate random passwords for database users
+2. **Limit network access** - Bind database to localhost or private network only
+3. **Enable SSL/TLS** - Use encrypted connections in production
+4. **Regular backups** - Implement automated backup strategies
+5. **Update regularly** - Keep database software up to date
+6. **Monitor access** - Enable and review database audit logs
+7. **Principle of least privilege** - Grant only necessary permissions
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/deployment/environment-variables">
+    Configure all Evolution API settings
+  </Card>
+  
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy Evolution API with Docker Compose
+  </Card>
+</CardGroup>

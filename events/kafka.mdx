@@ -1,0 +1,578 @@
+---
+title: Kafka
+description: Stream WhatsApp events to Apache Kafka for high-throughput, distributed event processing
+---
+
+Kafka integration enables you to stream WhatsApp events to Apache Kafka topics for real-time data pipelines, stream processing, and event-driven architectures.
+
+## Configuration
+
+Configure Kafka connection and event routing through environment variables.
+
+### Basic Connection
+
+```bash .env
+# Enable Kafka integration
+KAFKA_ENABLED=true
+
+# Kafka client ID
+KAFKA_CLIENT_ID=evolution-api
+
+# Comma-separated list of broker addresses
+KAFKA_BROKERS=localhost:9092,localhost:9093,localhost:9094
+
+# Connection and request timeouts (milliseconds)
+KAFKA_CONNECTION_TIMEOUT=3000
+KAFKA_REQUEST_TIMEOUT=30000
+```
+
+<Note>
+For production environments, specify multiple brokers for high availability. The client will automatically connect to available brokers.
+</Note>
+
+### Global vs Instance Topics
+
+Configure Kafka to work in two modes:
+
+<Tabs>
+  <Tab title="Per-Instance Topics">
+    Each instance publishes to its own topics:
+    
+    ```bash .env
+    KAFKA_ENABLED=true
+    KAFKA_GLOBAL_ENABLED=false
+    KAFKA_TOPIC_PREFIX=evolution
+    ```
+    
+    Creates topics like:
+    - `evolution.my_instance.messages.upsert`
+    - `evolution.my_instance.qrcode.updated`
+    - `evolution.my_instance.connection.update`
+  </Tab>
+  
+  <Tab title="Global Topics">
+    All instances publish to shared global topics:
+    
+    ```bash .env
+    KAFKA_ENABLED=true
+    KAFKA_GLOBAL_ENABLED=true
+    KAFKA_TOPIC_PREFIX=evolution
+    ```
+    
+    Creates topics like:
+    - `evolution.global.messages.upsert`
+    - `evolution.global.qrcode.updated`
+    - `evolution.global.connection.update`
+  </Tab>
+</Tabs>
+
+### Topic Configuration
+
+```bash .env
+# Topic prefix for namespacing
+KAFKA_TOPIC_PREFIX=evolution
+
+# Number of partitions per topic
+KAFKA_NUM_PARTITIONS=1
+
+# Replication factor
+KAFKA_REPLICATION_FACTOR=1
+
+# Auto-create topics if they don't exist
+KAFKA_AUTO_CREATE_TOPICS=false
+```
+
+<Warning>
+In production, set `KAFKA_AUTO_CREATE_TOPICS=false` and create topics manually with appropriate partition and replication settings for your cluster.
+</Warning>
+
+### Consumer Configuration
+
+```bash .env
+# Consumer group ID for reading events
+KAFKA_CONSUMER_GROUP_ID=evolution-api-consumers
+```
+
+## SASL Authentication
+
+Secure your Kafka connection with SASL authentication:
+
+```bash .env
+# Enable SASL authentication
+KAFKA_SASL_ENABLED=true
+
+# SASL mechanism: plain, scram-sha-256, scram-sha-512
+KAFKA_SASL_MECHANISM=plain
+
+# SASL credentials
+KAFKA_SASL_USERNAME=your_username
+KAFKA_SASL_PASSWORD=your_password
+```
+
+<Tabs>
+  <Tab title="PLAIN">
+    Simple username/password authentication:
+    ```bash
+    KAFKA_SASL_MECHANISM=plain
+    KAFKA_SASL_USERNAME=admin
+    KAFKA_SASL_PASSWORD=admin-secret
+    ```
+  </Tab>
+  
+  <Tab title="SCRAM-SHA-256">
+    Salted Challenge Response Authentication:
+    ```bash
+    KAFKA_SASL_MECHANISM=scram-sha-256
+    KAFKA_SASL_USERNAME=your_username
+    KAFKA_SASL_PASSWORD=your_password
+    ```
+  </Tab>
+  
+  <Tab title="SCRAM-SHA-512">
+    More secure variant of SCRAM:
+    ```bash
+    KAFKA_SASL_MECHANISM=scram-sha-512
+    KAFKA_SASL_USERNAME=your_username
+    KAFKA_SASL_PASSWORD=your_password
+    ```
+  </Tab>
+</Tabs>
+
+## SSL Configuration
+
+Enable SSL/TLS encryption for Kafka connections:
+
+```bash .env
+# Enable SSL
+KAFKA_SSL_ENABLED=true
+
+# Reject unauthorized certificates
+KAFKA_SSL_REJECT_UNAUTHORIZED=true
+
+# Path to CA certificate (optional)
+KAFKA_SSL_CA=/path/to/ca-cert.pem
+
+# Path to client certificate (optional)
+KAFKA_SSL_CERT=/path/to/client-cert.pem
+
+# Path to client key (optional)
+KAFKA_SSL_KEY=/path/to/client-key.pem
+```
+
+<Note>
+For development with self-signed certificates, you can set `KAFKA_SSL_REJECT_UNAUTHORIZED=false`, but this is not recommended for production.
+</Note>
+
+## Available Events
+
+Configure which events are sent to Kafka:
+
+<Tabs>
+  <Tab title="Instance Events">
+    ```bash .env
+    # Application lifecycle
+    KAFKA_EVENTS_APPLICATION_STARTUP=false
+    KAFKA_EVENTS_INSTANCE_CREATE=false
+    KAFKA_EVENTS_INSTANCE_DELETE=false
+    
+    # Connection events
+    KAFKA_EVENTS_QRCODE_UPDATED=true
+    KAFKA_EVENTS_CONNECTION_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Message Events">
+    ```bash .env
+    # Message events
+    KAFKA_EVENTS_MESSAGES_SET=true
+    KAFKA_EVENTS_MESSAGES_UPSERT=true
+    KAFKA_EVENTS_MESSAGES_EDITED=true
+    KAFKA_EVENTS_MESSAGES_UPDATE=true
+    KAFKA_EVENTS_MESSAGES_DELETE=true
+    KAFKA_EVENTS_SEND_MESSAGE=true
+    KAFKA_EVENTS_SEND_MESSAGE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Contact Events">
+    ```bash .env
+    # Contact events
+    KAFKA_EVENTS_CONTACTS_SET=true
+    KAFKA_EVENTS_CONTACTS_UPSERT=true
+    KAFKA_EVENTS_CONTACTS_UPDATE=true
+    KAFKA_EVENTS_PRESENCE_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Chat & Group Events">
+    ```bash .env
+    # Chat events
+    KAFKA_EVENTS_CHATS_SET=true
+    KAFKA_EVENTS_CHATS_UPSERT=true
+    KAFKA_EVENTS_CHATS_UPDATE=true
+    KAFKA_EVENTS_CHATS_DELETE=true
+    
+    # Group events
+    KAFKA_EVENTS_GROUPS_UPSERT=true
+    KAFKA_EVENTS_GROUPS_UPDATE=true
+    KAFKA_EVENTS_GROUP_PARTICIPANTS_UPDATE=true
+    ```
+  </Tab>
+  
+  <Tab title="Other Events">
+    ```bash .env
+    # Label events
+    KAFKA_EVENTS_LABELS_EDIT=true
+    KAFKA_EVENTS_LABELS_ASSOCIATION=true
+    
+    # Call events
+    KAFKA_EVENTS_CALL=true
+    
+    # Typebot integration
+    KAFKA_EVENTS_TYPEBOT_START=false
+    KAFKA_EVENTS_TYPEBOT_CHANGE_STATUS=false
+    ```
+  </Tab>
+</Tabs>
+
+## Per-Instance Configuration
+
+Configure Kafka events for a specific instance via API:
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/kafka/set/instance_name \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "kafka": {
+      "enabled": true,
+      "events": [
+        "MESSAGES_UPSERT",
+        "MESSAGES_UPDATE",
+        "QRCODE_UPDATED",
+        "CONNECTION_UPDATE"
+      ]
+    }
+  }'
+```
+
+```javascript JavaScript
+const response = await axios.post(
+  'https://your-api.com/kafka/set/instance_name',
+  {
+    kafka: {
+      enabled: true,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'QRCODE_UPDATED',
+        'CONNECTION_UPDATE'
+      ]
+    }
+  },
+  {
+    headers: { 'apikey': 'YOUR_API_KEY' }
+  }
+);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://your-api.com/kafka/set/instance_name',
+    json={
+        'kafka': {
+            'enabled': True,
+            'events': [
+                'MESSAGES_UPSERT',
+                'MESSAGES_UPDATE',
+                'QRCODE_UPDATED',
+                'CONNECTION_UPDATE'
+            ]
+        }
+    },
+    headers={'apikey': 'YOUR_API_KEY'}
+)
+```
+</CodeGroup>
+
+## Message Format
+
+Messages published to Kafka include both headers and body:
+
+### Message Headers
+
+```javascript
+{
+  "event": "messages.upsert",
+  "instance": "my_instance",
+  "origin": "WhatsApp",
+  "timestamp": "2024-03-04T10:30:00.000Z"
+}
+```
+
+### Message Body
+
+```json
+{
+  "event": "messages.upsert",
+  "instance": "my_instance",
+  "data": {
+    "key": {
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "fromMe": false,
+      "id": "3EB0XXXXX"
+    },
+    "message": {
+      "conversation": "Hello from WhatsApp!"
+    },
+    "messageTimestamp": 1709550600,
+    "pushName": "John Doe"
+  },
+  "server_url": "https://your-evolution-api.com",
+  "date_time": "2024-03-04T10:30:00.000Z",
+  "sender": "5511999999999",
+  "apikey": "instance_api_key",
+  "timestamp": 1709550600000
+}
+```
+
+<Note>
+The message key is set to the instance name for per-instance topics, or `instanceName-event` for global topics. This ensures proper partitioning.
+</Note>
+
+## Consuming Events
+
+Examples of consuming events from Kafka:
+
+<CodeGroup>
+```javascript Node.js
+const { Kafka } = require('kafkajs');
+
+const kafka = new Kafka({
+  clientId: 'my-consumer',
+  brokers: ['localhost:9092']
+});
+
+const consumer = kafka.consumer({ 
+  groupId: 'evolution-consumers' 
+});
+
+const run = async () => {
+  await consumer.connect();
+  
+  // Subscribe to topics
+  await consumer.subscribe({
+    topics: [
+      'evolution.global.messages.upsert',
+      'evolution.global.qrcode.updated'
+    ],
+    fromBeginning: false
+  });
+  
+  // Process messages
+  await consumer.run({
+    eachMessage: async ({ topic, partition, message }) => {
+      const event = JSON.parse(message.value.toString());
+      
+      console.log({
+        topic,
+        partition,
+        offset: message.offset,
+        event: event.event,
+        instance: event.instance,
+        timestamp: message.timestamp
+      });
+      
+      // Process the event
+      await processEvent(event);
+    },
+  });
+};
+
+run().catch(console.error);
+```
+
+```python Python
+from kafka import KafkaConsumer
+import json
+
+consumer = KafkaConsumer(
+    'evolution.global.messages.upsert',
+    'evolution.global.qrcode.updated',
+    bootstrap_servers=['localhost:9092'],
+    group_id='evolution-consumers',
+    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
+    auto_offset_reset='latest'
+)
+
+print('Consuming messages...')
+
+for message in consumer:
+    event = message.value
+    
+    print(f"Topic: {message.topic}")
+    print(f"Partition: {message.partition}")
+    print(f"Offset: {message.offset}")
+    print(f"Event: {event['event']}")
+    print(f"Instance: {event['instance']}")
+    print(f"Data: {event['data']}")
+    print("---")
+    
+    # Process the event
+    process_event(event)
+```
+
+```java Java
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import com.google.gson.Gson;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.Properties;
+
+public class EventConsumer {
+    public static void main(String[] args) {
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "evolution-consumers");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+        consumer.subscribe(Arrays.asList(
+            "evolution.global.messages.upsert",
+            "evolution.global.qrcode.updated"
+        ));
+        
+        Gson gson = new Gson();
+        
+        System.out.println("Consuming messages...");
+        
+        while (true) {
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+            
+            records.forEach(record -> {
+                Event event = gson.fromJson(record.value(), Event.class);
+                
+                System.out.println("Topic: " + record.topic());
+                System.out.println("Partition: " + record.partition());
+                System.out.println("Offset: " + record.offset());
+                System.out.println("Event: " + event.getEvent());
+                System.out.println("Instance: " + event.getInstance());
+                System.out.println("---");
+                
+                // Process the event
+                processEvent(event);
+            });
+        }
+    }
+}
+```
+</CodeGroup>
+
+## Connection Resilience
+
+Evolution API implements automatic reconnection:
+
+- **Initial delay**: 5 seconds
+- **Maximum attempts**: 10
+- **Exponential backoff**: Delay doubles each attempt
+- **Retry on send**: Up to 3 attempts per message
+
+<Note>
+The producer is configured with `idempotent: true` and `maxInFlightRequests: 1` to ensure exactly-once semantics and message ordering.
+</Note>
+
+## Best Practices
+
+<Steps>
+  <Step title="Choose Appropriate Partitions">
+    Set `KAFKA_NUM_PARTITIONS` based on your throughput needs:
+    - More partitions = higher parallelism
+    - Start with 3-6 partitions per topic
+    - Can increase later, but can't decrease
+  </Step>
+  
+  <Step title="Set Replication Factor">
+    For production:
+    ```bash
+    KAFKA_REPLICATION_FACTOR=3
+    ```
+    Protects against broker failures.
+  </Step>
+  
+  <Step title="Use Consumer Groups">
+    Multiple consumers in the same group share the load:
+    ```javascript
+    const consumer = kafka.consumer({ 
+      groupId: 'evolution-processors' 
+    });
+    ```
+  </Step>
+  
+  <Step title="Handle Deserialization Errors">
+    Always wrap JSON parsing in try-catch:
+    ```javascript
+    try {
+      const event = JSON.parse(message.value.toString());
+      await processEvent(event);
+    } catch (error) {
+      console.error('Failed to process message:', error);
+      // Log to dead letter topic
+    }
+    ```
+  </Step>
+  
+  <Step title="Monitor Lag">
+    Set up monitoring for consumer lag to detect processing issues early.
+  </Step>
+</Steps>
+
+<Warning>
+Kafka requires proper disk space and memory allocation. Monitor your cluster resources to prevent message loss.
+</Warning>
+
+## Troubleshooting
+
+<Accordion title="Connection timeout">
+  1. Verify Kafka brokers are running and accessible
+  2. Check firewall rules allow connections to broker ports
+  3. Increase `KAFKA_CONNECTION_TIMEOUT` if network is slow
+  4. Verify `KAFKA_BROKERS` addresses are correct
+</Accordion>
+
+<Accordion title="SASL authentication failed">
+  1. Verify credentials in `.env` file
+  2. Check SASL mechanism matches Kafka server configuration
+  3. Ensure user has proper ACLs in Kafka
+  4. Review Kafka server logs for authentication errors
+</Accordion>
+
+<Accordion title="Messages not appearing in topics">
+  1. Check that specific events are enabled in configuration
+  2. Verify `KAFKA_ENABLED=true`
+  3. If `AUTO_CREATE_TOPICS=false`, manually create topics
+  4. Check Evolution API logs for Kafka errors
+  5. Verify instance is connected to WhatsApp
+</Accordion>
+
+<Accordion title="Consumer lag increasing">
+  1. Increase number of consumers in consumer group
+  2. Optimize message processing code
+  3. Increase number of partitions (requires topic recreation)
+  4. Check for slow downstream dependencies
+</Accordion>
+
+<Accordion title="SSL certificate errors">
+  1. Verify certificate paths are correct
+  2. Check certificate validity dates
+  3. Ensure CA certificate is properly formatted
+  4. For testing, temporarily set `KAFKA_SSL_REJECT_UNAUTHORIZED=false`
+</Accordion>

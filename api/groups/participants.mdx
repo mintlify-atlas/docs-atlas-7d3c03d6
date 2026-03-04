@@ -1,0 +1,238 @@
+---
+title: 'Manage Group Participants'
+api: 'POST /group/updateParticipant/:instanceName'
+description: 'Add, remove, promote, or demote participants in a WhatsApp group.'
+---
+
+## Overview
+
+You can manage group participants by adding new members, removing existing ones, or changing their admin status. You must be a group admin to perform these actions.
+
+<Warning>
+  Only group admins can add, remove, promote, or demote participants. Attempting these actions as a regular member will fail.
+</Warning>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+<ParamField body="groupJid" type="string" required>
+  The WhatsApp group JID (can be provided with or without the `@g.us` suffix).
+</ParamField>
+
+<ParamField body="action" type="string" required>
+  The action to perform on participants. Must be one of:
+  - `add`: Add new participants to the group
+  - `remove`: Remove participants from the group
+  - `promote`: Promote participants to admin status
+  - `demote`: Demote admins to regular member status
+</ParamField>
+
+<ParamField body="participants" type="string[]" required>
+  Array of participant phone numbers in international format (e.g., ["5511999999999", "5511888888888"]).
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean">
+  Whether the operation completed successfully.
+</ResponseField>
+
+<ResponseField name="action" type="string">
+  The action that was performed.
+</ResponseField>
+
+<ResponseField name="participants" type="array">
+  Array of affected participant JIDs.
+</ResponseField>
+
+<ResponseField name="results" type="array">
+  Detailed results for each participant.
+  
+  <Expandable title="properties">
+    <ResponseField name="jid" type="string">
+      Participant's WhatsApp JID.
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Result status (e.g., "success", "error", "already_member").
+    </ResponseField>
+    
+    <ResponseField name="message" type="string">
+      Descriptive message about the result.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL (Add Participants)
+curl --request POST \
+  --url https://api.example.com/group/updateParticipant/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "groupJid": "120363123456789@g.us",
+    "action": "add",
+    "participants": [
+      "5511999999999",
+      "5511888888888"
+    ]
+  }'
+```
+
+```bash cURL (Promote to Admin)
+curl --request POST \
+  --url https://api.example.com/group/updateParticipant/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "groupJid": "120363123456789@g.us",
+    "action": "promote",
+    "participants": ["5511999999999"]
+  }'
+```
+
+```javascript JavaScript
+// Add participants
+const response = await fetch(
+  'https://api.example.com/group/updateParticipant/my-instance',
+  {
+    method: 'POST',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      groupJid: '120363123456789@g.us',
+      action: 'add',
+      participants: ['5511999999999', '5511888888888']
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+# Remove participants
+response = requests.post(
+    'https://api.example.com/group/updateParticipant/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'groupJid': '120363123456789@g.us',
+        'action': 'remove',
+        'participants': ['5511999999999']
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 201 Success (Add)
+{
+  "success": true,
+  "action": "add",
+  "participants": [
+    "5511999999999@s.whatsapp.net",
+    "5511888888888@s.whatsapp.net"
+  ],
+  "results": [
+    {
+      "jid": "5511999999999@s.whatsapp.net",
+      "status": "success",
+      "message": "Participant added successfully"
+    },
+    {
+      "jid": "5511888888888@s.whatsapp.net",
+      "status": "success",
+      "message": "Participant added successfully"
+    }
+  ]
+}
+```
+
+```json 201 Success (Promote)
+{
+  "success": true,
+  "action": "promote",
+  "participants": ["5511999999999@s.whatsapp.net"],
+  "results": [
+    {
+      "jid": "5511999999999@s.whatsapp.net",
+      "status": "success",
+      "message": "Participant promoted to admin"
+    }
+  ]
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid action",
+  "message": "Action must be one of: add, remove, promote, demote"
+}
+```
+
+```json 403 Forbidden
+{
+  "error": "Insufficient permissions",
+  "message": "You must be a group admin to perform this action"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Group not found",
+  "message": "The specified group does not exist"
+}
+```
+
+</ResponseExample>
+
+## Usage Notes
+
+<Info>
+  When adding participants, they will receive a group invitation notification. If their privacy settings prevent group adds, they'll need to join manually using an invite link.
+</Info>
+
+<Tip>
+  You can add multiple participants in a single request. The response will include individual status for each participant.
+</Tip>
+
+<Warning>
+  Super admins (group creators) cannot be demoted or removed through this endpoint.
+</Warning>
+
+## Additional Endpoints
+
+### Get Participants List
+
+To retrieve the list of group participants:
+
+```
+GET /group/participants/:instanceName?groupJid=120363123456789@g.us
+```
+
+This returns an array of participant objects with their admin status.

@@ -1,0 +1,384 @@
+---
+title: Amazon S3 Storage
+description: Configure Amazon S3 or S3-compatible storage for media files in Evolution API
+---
+
+Evolution API supports Amazon S3 and S3-compatible storage services for storing media files, including images, videos, audio, and documents exchanged through WhatsApp.
+
+## Overview
+
+When you enable S3 storage, Evolution API automatically uploads all media files to your configured S3 bucket instead of storing them locally. This provides:
+
+- Scalable, distributed storage for media files
+- Reduced server disk usage
+- Better performance for multi-instance deployments
+- Compatibility with S3-compatible services (MinIO, DigitalOcean Spaces, etc.)
+
+## Configuration
+
+### Amazon S3 Setup
+
+<Steps>
+  <Step title="Create an S3 bucket">
+    Log in to your AWS Console and create a new S3 bucket in your preferred region. Note the bucket name and region for configuration.
+  </Step>
+  
+  <Step title="Create IAM credentials">
+    Create an IAM user with programmatic access and attach a policy with the following permissions:
+    
+    ```json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:PutObject",
+            "s3:GetObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::your-bucket-name/*",
+            "arn:aws:s3:::your-bucket-name"
+          ]
+        }
+      ]
+    }
+    ```
+    
+    Save the Access Key ID and Secret Access Key.
+  </Step>
+  
+  <Step title="Configure environment variables">
+    Add the following variables to your `.env` file:
+    
+    ```bash
+    S3_ENABLED=true
+    S3_BUCKET=your-bucket-name
+    S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+    S3_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    S3_ENDPOINT=s3.amazonaws.com
+    S3_REGION=us-east-1
+    ```
+  </Step>
+  
+  <Step title="Restart Evolution API">
+    Restart your Evolution API instance to apply the new configuration.
+  </Step>
+</Steps>
+
+## Environment Variables
+
+### Required Variables
+
+<ResponseField name="S3_ENABLED" type="boolean" required>
+  Enable or disable S3 storage integration.
+  
+  **Default:** `false`
+  
+  ```bash
+  S3_ENABLED=true
+  ```
+</ResponseField>
+
+<ResponseField name="S3_BUCKET" type="string" required>
+  The name of your S3 bucket where media files will be stored.
+  
+  ```bash
+  S3_BUCKET=evolution
+  ```
+</ResponseField>
+
+<ResponseField name="S3_ACCESS_KEY" type="string" required>
+  Your AWS Access Key ID with permissions to write to the S3 bucket.
+  
+  ```bash
+  S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+  ```
+</ResponseField>
+
+<ResponseField name="S3_SECRET_KEY" type="string" required>
+  Your AWS Secret Access Key corresponding to the Access Key ID.
+  
+  ```bash
+  S3_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+</ResponseField>
+
+### Optional Variables
+
+<ResponseField name="S3_ENDPOINT" type="string">
+  The S3 endpoint URL. For Amazon S3, use the regional endpoint or `s3.amazonaws.com`.
+  
+  **Default:** `s3.domain.com`
+  
+  **Examples:**
+  - Global: `s3.amazonaws.com`
+  - Regional: `s3.us-west-2.amazonaws.com`
+  - EU: `s3.eu-west-3.amazonaws.com`
+  
+  ```bash
+  S3_ENDPOINT=s3.amazonaws.com
+  ```
+</ResponseField>
+
+<ResponseField name="S3_REGION" type="string">
+  The AWS region where your S3 bucket is located.
+  
+  **Default:** `eu-west-3`
+  
+  ```bash
+  S3_REGION=us-east-1
+  ```
+</ResponseField>
+
+<ResponseField name="S3_PORT" type="number">
+  The port to use for S3 connections. Use 443 for HTTPS or 80 for HTTP.
+  
+  **Default:** `443`
+  
+  ```bash
+  S3_PORT=443
+  ```
+</ResponseField>
+
+<ResponseField name="S3_USE_SSL" type="boolean">
+  Enable SSL/TLS for secure connections to S3.
+  
+  **Default:** `true`
+  
+  ```bash
+  S3_USE_SSL=true
+  ```
+</ResponseField>
+
+## Regional Endpoints
+
+Amazon S3 provides regional endpoints for better performance. Use the endpoint closest to your Evolution API deployment:
+
+<CodeGroup>
+
+```bash US East (N. Virginia)
+S3_ENDPOINT=s3.us-east-1.amazonaws.com
+S3_REGION=us-east-1
+```
+
+```bash US West (Oregon)
+S3_ENDPOINT=s3.us-west-2.amazonaws.com
+S3_REGION=us-west-2
+```
+
+```bash Europe (Ireland)
+S3_ENDPOINT=s3.eu-west-1.amazonaws.com
+S3_REGION=eu-west-1
+```
+
+```bash Europe (Paris)
+S3_ENDPOINT=s3.eu-west-3.amazonaws.com
+S3_REGION=eu-west-3
+```
+
+```bash Asia Pacific (Singapore)
+S3_ENDPOINT=s3.ap-southeast-1.amazonaws.com
+S3_REGION=ap-southeast-1
+```
+
+```bash South America (São Paulo)
+S3_ENDPOINT=s3.sa-east-1.amazonaws.com
+S3_REGION=sa-east-1
+```
+
+</CodeGroup>
+
+## S3-Compatible Services
+
+Evolution API works with any S3-compatible storage service:
+
+### DigitalOcean Spaces
+
+```bash
+S3_ENABLED=true
+S3_BUCKET=your-space-name
+S3_ACCESS_KEY=your_spaces_key
+S3_SECRET_KEY=your_spaces_secret
+S3_ENDPOINT=nyc3.digitaloceanspaces.com
+S3_REGION=nyc3
+S3_USE_SSL=true
+```
+
+### Cloudflare R2
+
+```bash
+S3_ENABLED=true
+S3_BUCKET=your-bucket-name
+S3_ACCESS_KEY=your_r2_access_key
+S3_SECRET_KEY=your_r2_secret_key
+S3_ENDPOINT=<account-id>.r2.cloudflarestorage.com
+S3_REGION=auto
+S3_USE_SSL=true
+```
+
+### Wasabi
+
+```bash
+S3_ENABLED=true
+S3_BUCKET=your-bucket-name
+S3_ACCESS_KEY=your_wasabi_key
+S3_SECRET_KEY=your_wasabi_secret
+S3_ENDPOINT=s3.us-east-1.wasabisys.com
+S3_REGION=us-east-1
+S3_USE_SSL=true
+```
+
+### Backblaze B2
+
+```bash
+S3_ENABLED=true
+S3_BUCKET=your-bucket-name
+S3_ACCESS_KEY=your_b2_key_id
+S3_SECRET_KEY=your_b2_application_key
+S3_ENDPOINT=s3.us-west-001.backblazeb2.com
+S3_REGION=us-west-001
+S3_USE_SSL=true
+```
+
+## Complete Configuration Example
+
+Here's a complete working configuration for Amazon S3:
+
+```bash .env
+# Amazon S3 Storage Configuration
+S3_ENABLED=true
+S3_BUCKET=evolution-media-production
+S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+S3_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+S3_ENDPOINT=s3.amazonaws.com
+S3_REGION=eu-west-3
+S3_PORT=443
+S3_USE_SSL=true
+```
+
+## Bucket Configuration
+
+### Public Access Settings
+
+<Warning>
+  Do not make your S3 bucket publicly accessible. Evolution API uses signed URLs to provide secure access to media files.
+</Warning>
+
+Your S3 bucket should have:
+- Block all public access: **Enabled**
+- Bucket versioning: **Optional** (recommended for backup)
+- Server-side encryption: **Recommended**
+
+### CORS Configuration
+
+If you're accessing media files from a web application, configure CORS on your S3 bucket:
+
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["GET", "HEAD"],
+    "AllowedOrigins": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+### Lifecycle Rules
+
+Consider setting up lifecycle rules to manage storage costs:
+
+```json
+{
+  "Rules": [
+    {
+      "Id": "DeleteOldMedia",
+      "Status": "Enabled",
+      "Expiration": {
+        "Days": 90
+      },
+      "Filter": {
+        "Prefix": "media/"
+      }
+    },
+    {
+      "Id": "TransitionToIA",
+      "Status": "Enabled",
+      "Transitions": [
+        {
+          "Days": 30,
+          "StorageClass": "STANDARD_IA"
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Connection timeout errors">
+    If you're experiencing connection timeouts:
+    
+    1. Verify your `S3_ENDPOINT` is correct for your region
+    2. Check that your firewall allows outbound HTTPS traffic on port 443
+    3. Ensure your Access Key and Secret Key are valid
+    4. Try using the regional endpoint instead of the global endpoint
+  </Accordion>
+  
+  <Accordion title="Access denied errors">
+    If you receive access denied errors:
+    
+    1. Verify your IAM user has the correct permissions (PutObject, GetObject, DeleteObject, ListBucket)
+    2. Check that the bucket name in your configuration matches the actual bucket name
+    3. Ensure the bucket policy doesn't deny access from your server's IP
+    4. Verify the Access Key and Secret Key are correct and active
+  </Accordion>
+  
+  <Accordion title="Files not uploading">
+    If files aren't being uploaded to S3:
+    
+    1. Check that `S3_ENABLED=true` in your environment variables
+    2. Verify all required variables are set (BUCKET, ACCESS_KEY, SECRET_KEY)
+    3. Check the Evolution API logs for error messages
+    4. Test your credentials using the AWS CLI: `aws s3 ls s3://your-bucket-name`
+  </Accordion>
+  
+  <Accordion title="SSL certificate errors">
+    If you encounter SSL certificate errors:
+    
+    1. Ensure `S3_USE_SSL=true` is set
+    2. Verify your system has up-to-date CA certificates
+    3. For self-signed certificates, you may need to disable SSL verification (not recommended for production)
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<Note>
+  Follow these security practices when configuring S3 storage:
+</Note>
+
+1. **Use IAM users with minimal permissions** - Only grant necessary S3 permissions
+2. **Enable server-side encryption** - Use SSE-S3 or SSE-KMS for data at rest
+3. **Rotate access keys regularly** - Change your S3 credentials every 90 days
+4. **Use bucket policies** - Restrict access to specific IP ranges or VPCs
+5. **Enable access logging** - Track all requests to your S3 bucket
+6. **Never commit credentials** - Keep your `.env` file out of version control
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="MinIO Setup" icon="server" href="/storage/minio">
+    Learn how to set up self-hosted S3-compatible storage with MinIO
+  </Card>
+  
+  <Card title="Database Configuration" icon="database" href="/deployment/database">
+    Configure your database to store instance and message metadata
+  </Card>
+</CardGroup>

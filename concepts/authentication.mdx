@@ -1,0 +1,640 @@
+---
+title: 'Authentication'
+description: 'Secure your Evolution API with API key authentication and per-instance tokens'
+---
+
+## Authentication Overview
+
+Evolution API uses **API key authentication** to secure all endpoints. There are two types of authentication:
+
+1. **Global API Key** - Full access to all instances and administrative operations
+2. **Instance Token** - Restricted access to a specific instance only
+
+All API requests require an `apikey` header with either a global key or instance-specific token.
+
+<Info>
+  API keys are passed via the `apikey` HTTP header (not `Authorization`). This allows you to use standard authentication schemes like JWT for your own application layer.
+</Info>
+
+## Global API Key
+
+The global API key grants full administrative access to your Evolution API installation.
+
+### Setting the Global Key
+
+Configure in your `.env` file:
+
+```bash
+# Define a global apikey to access all instances.
+AUTHENTICATION_API_KEY=429683C4C977415CAAFCCE10F7D57E11
+```
+
+<Warning>
+  Generate a strong, random API key for production. Use at least 32 characters with mixed alphanumeric characters. Never use the example key above.
+</Warning>
+
+### Generate a Secure Key
+
+<CodeGroup>
+
+```bash Linux/Mac
+# Generate a secure random key
+openssl rand -hex 32
+```
+
+```bash Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+```python Python
+import secrets
+print(secrets.token_hex(32))
+```
+
+```bash PowerShell
+[System.Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+</CodeGroup>
+
+### Global Key Capabilities
+
+With the global API key, you can:
+
+- Create new instances
+- Delete any instance
+- Fetch information about all instances
+- Access any instance's endpoints
+- Modify system-wide configurations
+
+```bash
+# Create instance with global key
+curl -X POST https://your-api.com/instance/create \
+  -H "apikey: 429683C4C977415CAAFCCE10F7D57E11" \
+  -H "Content-Type: application/json" \
+  -d '{"instanceName": "new-instance"}'
+
+# Fetch all instances
+curl -X GET https://your-api.com/instance/fetchInstances \
+  -H "apikey: 429683C4C977415CAAFCCE10F7D57E11"
+```
+
+## Instance Tokens
+
+Each instance has its own unique authentication token, providing scoped access to that instance only.
+
+### How Instance Tokens Work
+
+When you create an instance, Evolution API generates a unique token:
+
+```json
+{
+  "instance": {
+    "instanceName": "my-whatsapp",
+    "instanceId": "550e8400-e29b-41d4-a716-446655440000"
+  },
+  "hash": "B5F6E890D1234567890ABCDEF1234567"  // This is the instance token
+}
+```
+
+### Custom Instance Tokens
+
+You can specify a custom token during instance creation:
+
+```json
+{
+  "instanceName": "my-whatsapp",
+  "token": "my-custom-secure-token-here",
+  "qrcode": true
+}
+```
+
+<Note>
+  Custom tokens must be unique across all instances. The API will reject duplicate tokens.
+</Note>
+
+From the source code (`src/api/services/auth.service.ts:7`):
+
+```typescript
+public async checkDuplicateToken(token: string) {
+  if (!token) {
+    return true;
+  }
+
+  const instances = await this.prismaRepository.instance.findMany({
+    where: { token },
+  });
+
+  if (instances.length > 0) {
+    throw new BadRequestException('Token already exists');
+  }
+
+  return true;
+}
+```
+
+### Using Instance Tokens
+
+Instance tokens restrict API access to only that instance:
+
+```bash
+# Send message with instance token
+curl -X POST https://your-api.com/message/sendText/my-whatsapp \
+  -H "apikey: B5F6E890D1234567890ABCDEF1234567" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "number": "5511999999999",
+    "text": "Hello from Evolution API!"
+  }'
+
+# Check connection state
+curl -X GET https://your-api.com/instance/connectionState/my-whatsapp \
+  -H "apikey: B5F6E890D1234567890ABCDEF1234567"
+```
+
+Attempting to access a different instance with this token will fail:
+
+```bash
+# This will return 401 Unauthorized
+curl -X GET https://your-api.com/instance/connectionState/different-instance \
+  -H "apikey: B5F6E890D1234567890ABCDEF1234567"
+```
+
+## Authentication Flow
+
+Here's how Evolution API validates requests:
+
+<Steps>
+  <Step title="Extract API Key">
+    The API extracts the `apikey` header from your request:
+
+    ```typescript
+    // From src/api/guards/auth.guard.ts:12
+    const key = req.get('apikey');
+    
+    if (!key) {
+      throw new UnauthorizedException();
+    }
+    ```
+  </Step>
+
+  <Step title="Check Global Key">
+    First, check if the key matches the global API key:
+
+    ```typescript
+    // From src/api/guards/auth.guard.ts:19
+    if (env.KEY === key) {
+      return next(); // Global access granted
+    }
+    ```
+  </Step>
+
+  <Step title="Check Instance Token">
+    If not a global key, verify it's a valid instance token:
+
+    ```typescript
+    // From src/api/guards/auth.guard.ts:29
+    const instance = await prismaRepository.instance.findUnique({
+      where: { name: param.instanceName },
+    });
+    
+    if (instance.token === key) {
+      return next(); // Instance access granted
+    }
+    ```
+  </Step>
+
+  <Step title="Reject Invalid Keys">
+    If neither match, reject the request:
+
+    ```typescript
+    throw new UnauthorizedException();
+    ```
+  </Step>
+</Steps>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use HTTPS in Production">
+    Always use HTTPS to encrypt API keys in transit:
+    
+    ```bash
+    # ✅ Good - Encrypted connection
+    https://your-api.com/instance/create
+    
+    # ❌ Bad - Exposes API key in plain text
+    http://your-api.com/instance/create
+    ```
+    
+    Configure SSL in your `.env`:
+    ```bash
+    SERVER_TYPE=https
+    SSL_CONF_PRIVKEY=/path/to/private.key
+    SSL_CONF_FULLCHAIN=/path/to/fullchain.crt
+    ```
+  </Accordion>
+
+  <Accordion title="Rotate Keys Regularly">
+    Implement a key rotation policy:
+    
+    1. Generate a new global API key
+    2. Update your `.env` file
+    3. Restart Evolution API
+    4. Update all client applications
+    
+    For instance tokens, delete and recreate instances with new tokens:
+    ```bash
+    # Delete old instance
+    curl -X DELETE https://your-api.com/instance/delete/my-instance \
+      -H "apikey: OLD_TOKEN"
+    
+    # Create with new token
+    curl -X POST https://your-api.com/instance/create \
+      -H "apikey: GLOBAL_KEY" \
+      -d '{"instanceName": "my-instance", "token": "NEW_TOKEN"}'
+    ```
+  </Accordion>
+
+  <Accordion title="Store Keys Securely">
+    Never hardcode API keys in your application:
+    
+    ```javascript
+    // ❌ Bad - Hardcoded key
+    const apiKey = 'B5F6E890D1234567890ABCDEF1234567';
+    
+    // ✅ Good - Environment variable
+    const apiKey = process.env.EVOLUTION_API_KEY;
+    
+    // ✅ Good - Secrets manager
+    const apiKey = await secretsManager.getSecret('evolution-api-key');
+    ```
+    
+    Use environment variables, secret managers, or encrypted configuration files.
+  </Accordion>
+
+  <Accordion title="Restrict Instance Tokens">
+    For customer-facing applications, always use instance tokens instead of the global key:
+    
+    ```javascript
+    // Multi-tenant SaaS example
+    class WhatsAppService {
+      async sendMessage(customerId, message) {
+        // Each customer gets their own instance token
+        const instanceToken = await db.getInstanceToken(customerId);
+        
+        return fetch(`${EVOLUTION_API}/message/sendText/${customerId}`, {
+          method: 'POST',
+          headers: {
+            'apikey': instanceToken,  // Not the global key!
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(message)
+        });
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Monitor Authentication Failures">
+    Track failed authentication attempts:
+    
+    ```javascript
+    // Monitor 401 responses
+    const response = await fetch(endpoint, { headers });
+    
+    if (response.status === 401) {
+      // Log and alert on authentication failures
+      logger.error('Authentication failed', { 
+        endpoint, 
+        timestamp: new Date() 
+      });
+      
+      // Implement rate limiting
+      await rateLimit.increment(ip);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Implement IP Whitelisting">
+    Restrict API access by IP address at the network level:
+    
+    ```nginx
+    # Nginx configuration
+    location /instance/create {
+      allow 203.0.113.0/24;  # Your office network
+      deny all;
+      proxy_pass http://evolution-api:8080;
+    }
+    ```
+    
+    Or use a firewall/VPC to limit access to your Evolution API server.
+  </Accordion>
+</AccordionGroup>
+
+## Authentication in Different Languages
+
+<CodeGroup>
+
+```javascript JavaScript/Node.js
+const EVOLUTION_API = 'https://your-api.com';
+const GLOBAL_API_KEY = process.env.EVOLUTION_GLOBAL_KEY;
+const INSTANCE_TOKEN = process.env.EVOLUTION_INSTANCE_TOKEN;
+
+// Using global key to create instance
+async function createInstance(name) {
+  const response = await fetch(`${EVOLUTION_API}/instance/create`, {
+    method: 'POST',
+    headers: {
+      'apikey': GLOBAL_API_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ instanceName: name })
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Authentication failed: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+// Using instance token to send message
+async function sendMessage(instanceName, number, text) {
+  const response = await fetch(
+    `${EVOLUTION_API}/message/sendText/${instanceName}`,
+    {
+      method: 'POST',
+      headers: {
+        'apikey': INSTANCE_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ number, text })
+    }
+  );
+  
+  return response.json();
+}
+```
+
+```python Python
+import os
+import requests
+
+EVOLUTION_API = 'https://your-api.com'
+GLOBAL_API_KEY = os.getenv('EVOLUTION_GLOBAL_KEY')
+INSTANCE_TOKEN = os.getenv('EVOLUTION_INSTANCE_TOKEN')
+
+def create_instance(name: str):
+    """Create instance with global key"""
+    response = requests.post(
+        f'{EVOLUTION_API}/instance/create',
+        headers={
+            'apikey': GLOBAL_API_KEY,
+            'Content-Type': 'application/json'
+        },
+        json={'instanceName': name}
+    )
+    
+    if response.status_code == 401:
+        raise Exception('Authentication failed')
+    
+    return response.json()
+
+def send_message(instance_name: str, number: str, text: str):
+    """Send message with instance token"""
+    response = requests.post(
+        f'{EVOLUTION_API}/message/sendText/{instance_name}',
+        headers={
+            'apikey': INSTANCE_TOKEN,
+            'Content-Type': 'application/json'
+        },
+        json={'number': number, 'text': text}
+    )
+    
+    return response.json()
+```
+
+```php PHP
+<?php
+
+$evolutionApi = 'https://your-api.com';
+$globalApiKey = getenv('EVOLUTION_GLOBAL_KEY');
+$instanceToken = getenv('EVOLUTION_INSTANCE_TOKEN');
+
+function createInstance($name) {
+    global $evolutionApi, $globalApiKey;
+    
+    $ch = curl_init("$evolutionApi/instance/create");
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            "apikey: $globalApiKey",
+            'Content-Type: application/json'
+        ],
+        CURLOPT_POSTFIELDS => json_encode([
+            'instanceName' => $name
+        ])
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($httpCode === 401) {
+        throw new Exception('Authentication failed');
+    }
+    
+    return json_decode($response, true);
+}
+
+function sendMessage($instanceName, $number, $text) {
+    global $evolutionApi, $instanceToken;
+    
+    $ch = curl_init("$evolutionApi/message/sendText/$instanceName");
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            "apikey: $instanceToken",
+            'Content-Type: application/json'
+        ],
+        CURLOPT_POSTFIELDS => json_encode([
+            'number' => $number,
+            'text' => $text
+        ])
+    ]);
+    
+    $response = curl_exec($ch);
+    curl_close($ch);
+    
+    return json_decode($response, true);
+}
+```
+
+```go Go
+package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "net/http"
+    "os"
+)
+
+var (
+    evolutionAPI  = "https://your-api.com"
+    globalAPIKey  = os.Getenv("EVOLUTION_GLOBAL_KEY")
+    instanceToken = os.Getenv("EVOLUTION_INSTANCE_TOKEN")
+)
+
+func createInstance(name string) (map[string]interface{}, error) {
+    body, _ := json.Marshal(map[string]string{
+        "instanceName": name,
+    })
+    
+    req, _ := http.NewRequest(
+        "POST",
+        evolutionAPI+"/instance/create",
+        bytes.NewBuffer(body),
+    )
+    req.Header.Set("apikey", globalAPIKey)
+    req.Header.Set("Content-Type", "application/json")
+    
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+    
+    if resp.StatusCode == 401 {
+        return nil, fmt.Errorf("authentication failed")
+    }
+    
+    var result map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&result)
+    return result, nil
+}
+
+func sendMessage(instanceName, number, text string) (map[string]interface{}, error) {
+    body, _ := json.Marshal(map[string]string{
+        "number": number,
+        "text":   text,
+    })
+    
+    req, _ := http.NewRequest(
+        "POST",
+        fmt.Sprintf("%s/message/sendText/%s", evolutionAPI, instanceName),
+        bytes.NewBuffer(body),
+    )
+    req.Header.Set("apikey", instanceToken)
+    req.Header.Set("Content-Type", "application/json")
+    
+    client := &http.Client{}
+    resp, err := client.Do(req)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+    
+    var result map[string]interface{}
+    json.NewDecoder(resp.Body).Decode(&result)
+    return result, nil
+}
+```
+
+</CodeGroup>
+
+## Expose Instances Configuration
+
+Control which instances are visible in fetch requests:
+
+```bash
+# In .env
+AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+```
+
+- `true` - All instances are returned in fetch requests
+- `false` - Instances are hidden, only explicitly requested instances are returned
+
+This adds privacy for multi-tenant deployments where customers shouldn't see other instances.
+
+## Common Authentication Errors
+
+<AccordionGroup>
+  <Accordion title="401 Unauthorized - Missing API Key">
+    ```json
+    {
+      "statusCode": 401,
+      "message": "Unauthorized",
+      "error": "Unauthorized"
+    }
+    ```
+    
+    **Cause**: No `apikey` header provided
+    
+    **Solution**: Add the header to your request:
+    ```bash
+    curl -H "apikey: YOUR_API_KEY" ...
+    ```
+  </Accordion>
+
+  <Accordion title="401 Unauthorized - Invalid API Key">
+    **Cause**: Wrong API key or token
+    
+    **Solution**: Verify you're using the correct key:
+    - Check `.env` file for global key
+    - Confirm instance token from creation response
+    - Ensure no extra spaces or newlines in the key
+  </Accordion>
+
+  <Accordion title="403 Forbidden - Wrong Instance Token">
+    ```json
+    {
+      "statusCode": 403,
+      "message": "Forbidden",
+      "error": "Forbidden"
+    }
+    ```
+    
+    **Cause**: Using instance token for a different instance
+    
+    **Solution**: Use the correct token for each instance or use the global API key
+  </Accordion>
+
+  <Accordion title="400 Bad Request - Duplicate Token">
+    ```json
+    {
+      "statusCode": 400,
+      "message": "Token already exists"
+    }
+    ```
+    
+    **Cause**: Trying to create instance with a token that's already in use
+    
+    **Solution**: Choose a unique token or let Evolution API generate one automatically
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Instances" icon="server" href="/concepts/instances">
+    Learn how to create and manage instances
+  </Card>
+  
+  <Card title="Webhooks" icon="webhook" href="/concepts/webhooks">
+    Configure webhooks for real-time event notifications
+  </Card>
+  
+  <Card title="Multi-Tenant" icon="users" href="/concepts/multi-tenant">
+    Build secure multi-tenant applications
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore all available API endpoints
+  </Card>
+</CardGroup>

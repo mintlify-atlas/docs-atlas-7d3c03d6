@@ -1,0 +1,558 @@
+---
+title: Create Instance
+description: Create a new WhatsApp instance with customizable settings and integrations
+---
+
+## POST /instance/create
+
+Create a new WhatsApp instance with support for multiple integrations including Baileys, WhatsApp Business API, webhooks, event systems, and chatbot platforms.
+
+### Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+```bash
+apikey: YOUR_API_KEY
+```
+
+### Request Body
+
+<ParamField body="instanceName" type="string" required>
+  Unique name for your instance. This identifier is used across all API calls.
+</ParamField>
+
+<ParamField body="token" type="string">
+  Custom authentication token for this instance. If not provided, a token will be auto-generated.
+</ParamField>
+
+<ParamField body="number" type="string">
+  WhatsApp number in international format (e.g., `5511999999999`). Required for WhatsApp Business API integration.
+</ParamField>
+
+<ParamField body="businessId" type="string">
+  WhatsApp Business Account ID. Required for WhatsApp Business API integration.
+</ParamField>
+
+<ParamField body="qrcode" type="boolean" default="false">
+  Generate QR code immediately after instance creation for Baileys integration.
+</ParamField>
+
+<ParamField body="integration" type="string">
+  WhatsApp integration type. Available options:
+  - `WHATSAPP-BAILEYS` - WhatsApp Web integration
+  - `WHATSAPP-BUSINESS` - Official WhatsApp Business API
+</ParamField>
+
+#### Settings
+
+<ParamField body="rejectCall" type="boolean" default="false">
+  Automatically reject incoming calls.
+</ParamField>
+
+<ParamField body="msgCall" type="string">
+  Message to send when rejecting a call. Requires `rejectCall` to be enabled.
+</ParamField>
+
+<ParamField body="groupsIgnore" type="boolean" default="false">
+  Ignore messages from groups.
+</ParamField>
+
+<ParamField body="alwaysOnline" type="boolean" default="false">
+  Keep WhatsApp status always online.
+</ParamField>
+
+<ParamField body="readMessages" type="boolean" default="false">
+  Automatically mark messages as read.
+</ParamField>
+
+<ParamField body="readStatus" type="boolean" default="false">
+  Automatically read status updates.
+</ParamField>
+
+<ParamField body="syncFullHistory" type="boolean" default="false">
+  Sync full message history when connecting.
+</ParamField>
+
+#### Webhook Configuration
+
+<ParamField body="webhookUrl" type="string">
+  URL to receive webhook events.
+</ParamField>
+
+<ParamField body="webhookByEvents" type="boolean" default="false">
+  Send webhooks grouped by event type.
+</ParamField>
+
+<ParamField body="webhookBase64" type="boolean" default="true">
+  Include media files as base64 in webhook payload.
+</ParamField>
+
+<ParamField body="webhookEvents" type="array">
+  Array of event types to receive. Available events:
+  - `QRCODE_UPDATED`
+  - `MESSAGES_UPSERT`
+  - `MESSAGES_UPDATE`
+  - `MESSAGES_DELETE`
+  - `SEND_MESSAGE`
+  - `CONNECTION_UPDATE`
+  - `CALL`
+  And more...
+</ParamField>
+
+#### Proxy Configuration
+
+<ParamField body="proxyHost" type="string">
+  Proxy server hostname or IP address.
+</ParamField>
+
+<ParamField body="proxyPort" type="string">
+  Proxy server port.
+</ParamField>
+
+<ParamField body="proxyProtocol" type="string">
+  Proxy protocol: `http` or `https`.
+</ParamField>
+
+<ParamField body="proxyUsername" type="string">
+  Proxy authentication username (optional).
+</ParamField>
+
+<ParamField body="proxyPassword" type="string">
+  Proxy authentication password (optional).
+</ParamField>
+
+#### Event System Integration
+
+<ParamField body="rabbitmqEnabled" type="boolean" default="false">
+  Enable RabbitMQ event publishing.
+</ParamField>
+
+<ParamField body="rabbitmqEvents" type="array">
+  Array of events to publish to RabbitMQ.
+</ParamField>
+
+<ParamField body="sqsEnabled" type="boolean" default="false">
+  Enable AWS SQS event publishing.
+</ParamField>
+
+<ParamField body="sqsEvents" type="array">
+  Array of events to publish to SQS.
+</ParamField>
+
+<ParamField body="natsEnabled" type="boolean" default="false">
+  Enable NATS event publishing.
+</ParamField>
+
+<ParamField body="natsEvents" type="array">
+  Array of events to publish to NATS.
+</ParamField>
+
+#### Chatwoot Integration
+
+<ParamField body="chatwootAccountId" type="string">
+  Chatwoot account ID.
+</ParamField>
+
+<ParamField body="chatwootToken" type="string">
+  Chatwoot access token.
+</ParamField>
+
+<ParamField body="chatwootUrl" type="string">
+  Chatwoot instance URL.
+</ParamField>
+
+<ParamField body="chatwootSignMsg" type="boolean">
+  Sign messages with agent name in Chatwoot.
+</ParamField>
+
+<ParamField body="chatwootReopenConversation" type="boolean">
+  Automatically reopen conversations.
+</ParamField>
+
+<ParamField body="chatwootConversationPending" type="boolean">
+  Set new conversations as pending.
+</ParamField>
+
+<ParamField body="chatwootImportContacts" type="boolean" default="true">
+  Import contacts to Chatwoot.
+</ParamField>
+
+<ParamField body="chatwootImportMessages" type="boolean" default="true">
+  Import message history to Chatwoot.
+</ParamField>
+
+<ParamField body="chatwootDaysLimitImportMessages" type="number" default="60">
+  Number of days to import messages from history.
+</ParamField>
+
+<ParamField body="chatwootMergeBrazilContacts" type="boolean" default="false">
+  Merge Brazilian contacts (removes 9th digit).
+</ParamField>
+
+<ParamField body="chatwootNameInbox" type="string">
+  Custom inbox name in Chatwoot. Defaults to instance name.
+</ParamField>
+
+### Response
+
+<ResponseField name="instance" type="object">
+  Instance information
+  
+  <ResponseField name="instanceName" type="string">
+    Name of the created instance
+  </ResponseField>
+  
+  <ResponseField name="instanceId" type="string">
+    Unique instance identifier (UUID)
+  </ResponseField>
+  
+  <ResponseField name="integration" type="string">
+    Integration type used
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Connection status: `open`, `close`, `connecting`
+  </ResponseField>
+  
+  <ResponseField name="webhookWaBusiness" type="string">
+    Webhook URL for WhatsApp Business (if applicable)
+  </ResponseField>
+  
+  <ResponseField name="accessTokenWaBusiness" type="string">
+    Access token for WhatsApp Business webhook (if applicable)
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="hash" type="string">
+  Authentication token for this instance. Use this in the `apikey` header for instance-specific operations.
+</ResponseField>
+
+<ResponseField name="webhook" type="object">
+  Webhook configuration
+  
+  <ResponseField name="webhookUrl" type="string">
+    Configured webhook URL
+  </ResponseField>
+  
+  <ResponseField name="webhookByEvents" type="boolean">
+    Events grouped by type
+  </ResponseField>
+  
+  <ResponseField name="webhookBase64" type="boolean">
+    Media included as base64
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="websocket" type="object">
+  WebSocket configuration
+  
+  <ResponseField name="enabled" type="boolean">
+    WebSocket events enabled
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="rabbitmq" type="object">
+  RabbitMQ configuration
+  
+  <ResponseField name="enabled" type="boolean">
+    RabbitMQ events enabled
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="sqs" type="object">
+  SQS configuration
+  
+  <ResponseField name="enabled" type="boolean">
+    SQS events enabled
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="nats" type="object">
+  NATS configuration
+  
+  <ResponseField name="enabled" type="boolean">
+    NATS events enabled
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="settings" type="object">
+  Instance settings
+  
+  <ResponseField name="rejectCall" type="boolean">
+    Reject calls setting
+  </ResponseField>
+  
+  <ResponseField name="msgCall" type="string">
+    Call rejection message
+  </ResponseField>
+  
+  <ResponseField name="groupsIgnore" type="boolean">
+    Ignore groups setting
+  </ResponseField>
+  
+  <ResponseField name="alwaysOnline" type="boolean">
+    Always online setting
+  </ResponseField>
+  
+  <ResponseField name="readMessages" type="boolean">
+    Auto-read messages setting
+  </ResponseField>
+  
+  <ResponseField name="readStatus" type="boolean">
+    Auto-read status setting
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="qrcode" type="object">
+  QR code for Baileys connection (if `qrcode: true` and integration is Baileys)
+  
+  <ResponseField name="code" type="string">
+    QR code string
+  </ResponseField>
+  
+  <ResponseField name="base64" type="string">
+    QR code as base64 image
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="chatwoot" type="object">
+  Chatwoot configuration (if Chatwoot credentials provided)
+  
+  <ResponseField name="enabled" type="boolean">
+    Chatwoot integration enabled
+  </ResponseField>
+  
+  <ResponseField name="accountId" type="string">
+    Chatwoot account ID
+  </ResponseField>
+  
+  <ResponseField name="webhookUrl" type="string">
+    Chatwoot webhook URL
+  </ResponseField>
+</ResponseField>
+
+### Examples
+
+<CodeGroup>
+
+```bash Basic Instance
+curl -X POST https://api.example.com/instance/create \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "my-instance",
+    "qrcode": true
+  }'
+```
+
+```bash With Webhook
+curl -X POST https://api.example.com/instance/create \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "webhook-instance",
+    "qrcode": true,
+    "webhookUrl": "https://your-server.com/webhook",
+    "webhookByEvents": false,
+    "webhookBase64": true,
+    "webhookEvents": [
+      "MESSAGES_UPSERT",
+      "MESSAGES_UPDATE",
+      "CONNECTION_UPDATE"
+    ]
+  }'
+```
+
+```bash With Settings
+curl -X POST https://api.example.com/instance/create \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "configured-instance",
+    "qrcode": true,
+    "rejectCall": true,
+    "msgCall": "Sorry, calls are not accepted.",
+    "groupsIgnore": false,
+    "alwaysOnline": true,
+    "readMessages": true,
+    "readStatus": false
+  }'
+```
+
+```bash WhatsApp Business API
+curl -X POST https://api.example.com/instance/create \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "business-instance",
+    "integration": "WHATSAPP-BUSINESS",
+    "number": "5511999999999",
+    "businessId": "123456789012345"
+  }'
+```
+
+```bash With Chatwoot
+curl -X POST https://api.example.com/instance/create \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "instanceName": "chatwoot-instance",
+    "qrcode": true,
+    "chatwootAccountId": "1",
+    "chatwootToken": "your-chatwoot-token",
+    "chatwootUrl": "https://chatwoot.example.com",
+    "chatwootSignMsg": true,
+    "chatwootReopenConversation": true,
+    "chatwootConversationPending": false,
+    "chatwootImportContacts": true,
+    "chatwootImportMessages": true,
+    "chatwootDaysLimitImportMessages": 30
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/instance/create', {
+  method: 'POST',
+  headers: {
+    'apikey': 'YOUR_API_KEY',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    instanceName: 'my-instance',
+    qrcode: true,
+    webhookUrl: 'https://your-server.com/webhook',
+    readMessages: true,
+    alwaysOnline: true
+  })
+});
+
+const data = await response.json();
+console.log('Instance created:', data.instance.instanceName);
+console.log('Auth token:', data.hash);
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/instance/create',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'instanceName': 'my-instance',
+        'qrcode': True,
+        'webhookUrl': 'https://your-server.com/webhook',
+        'readMessages': True,
+        'alwaysOnline': True
+    }
+)
+
+data = response.json()
+print(f"Instance created: {data['instance']['instanceName']}")
+print(f"Auth token: {data['hash']}")
+```
+
+```php PHP
+<?php
+$response = file_get_contents('https://api.example.com/instance/create', false, stream_context_create([
+    'http' => [
+        'method' => 'POST',
+        'header' => [
+            'apikey: YOUR_API_KEY',
+            'Content-Type: application/json'
+        ],
+        'content' => json_encode([
+            'instanceName' => 'my-instance',
+            'qrcode' => true,
+            'webhookUrl' => 'https://your-server.com/webhook',
+            'readMessages' => true,
+            'alwaysOnline' => true
+        ])
+    ]
+]));
+
+$data = json_decode($response, true);
+echo "Instance created: " . $data['instance']['instanceName'] . "\n";
+echo "Auth token: " . $data['hash'] . "\n";
+?>
+```
+
+</CodeGroup>
+
+### Response Example
+
+```json Success Response
+{
+  "instance": {
+    "instanceName": "my-instance",
+    "instanceId": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d",
+    "integration": "WHATSAPP-BAILEYS",
+    "status": "close"
+  },
+  "hash": "A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D",
+  "webhook": {
+    "webhookUrl": "https://your-server.com/webhook",
+    "webhookByEvents": false,
+    "webhookBase64": true
+  },
+  "websocket": {
+    "enabled": false
+  },
+  "rabbitmq": {
+    "enabled": false
+  },
+  "sqs": {
+    "enabled": false
+  },
+  "nats": {
+    "enabled": false
+  },
+  "settings": {
+    "rejectCall": false,
+    "msgCall": "",
+    "groupsIgnore": false,
+    "alwaysOnline": true,
+    "readMessages": true,
+    "readStatus": false,
+    "syncFullHistory": false
+  },
+  "qrcode": {
+    "code": "2@abc123...",
+    "base64": "data:image/png;base64,iVBORw0KGgo..."
+  }
+}
+```
+
+```json Error Response
+{
+  "error": true,
+  "message": "The \"instanceName\" cannot be empty"
+}
+```
+
+<Note>
+  **Important:** Save the `hash` value from the response. You'll need it as your `apikey` for all subsequent API calls related to this instance.
+</Note>
+
+<Warning>
+  If you provide Chatwoot credentials (`chatwootAccountId`, `chatwootToken`, `chatwootUrl`), all three fields are required along with `chatwootSignMsg`, `chatwootReopenConversation`, and `chatwootConversationPending`.
+</Warning>
+
+### Error Handling
+
+The API returns standard HTTP status codes:
+
+- `201` - Instance created successfully
+- `400` - Bad request (validation error)
+- `401` - Unauthorized (invalid API key)
+- `500` - Internal server error
+
+Common error scenarios:
+
+1. **Missing instanceName**: The `instanceName` field is required
+2. **Invalid integration**: Unknown integration type specified
+3. **Invalid proxy**: Proxy configuration test failed
+4. **Chatwoot validation**: Missing required Chatwoot fields when partial config provided
+5. **Business API requirements**: Missing `number` field for WhatsApp Business integration

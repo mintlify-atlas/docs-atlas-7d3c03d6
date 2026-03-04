@@ -1,0 +1,253 @@
+---
+title: 'List Contacts'
+api: 'POST /chat/findContacts/:instanceName'
+description: 'Retrieve contacts from your WhatsApp instance with filtering and pagination.'
+---
+
+## Overview
+
+You can fetch all contacts from your WhatsApp instance. This endpoint supports advanced filtering and pagination to help you find specific contacts efficiently.
+
+<Info>
+  Contacts are automatically synced from your WhatsApp instance. This includes both saved contacts and users you've chatted with.
+</Info>
+
+## Authentication
+
+This endpoint requires authentication via the `apikey` header.
+
+<ParamField path="header.apikey" type="string" required>
+  Your Evolution API key for authentication.
+</ParamField>
+
+## Path Parameters
+
+<ParamField path="path.instanceName" type="string" required>
+  The name of your WhatsApp instance.
+</ParamField>
+
+## Request Body
+
+The request body accepts a query object for filtering and pagination:
+
+<ParamField body="where" type="object">
+  Filter criteria for contacts.
+  
+  <Expandable title="properties">
+    <ParamField body="where.remoteJid" type="string">
+      Filter by remote JID (WhatsApp ID).
+    </ParamField>
+    
+    <ParamField body="where.pushName" type="string">
+      Filter by contact's push name (display name).
+    </ParamField>
+    
+    <ParamField body="where.owner" type="string">
+      Filter by instance owner.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="limit" type="number" default="20">
+  Maximum number of contacts to return.
+</ParamField>
+
+<ParamField body="offset" type="number" default="0">
+  Number of contacts to skip (for pagination).
+</ParamField>
+
+<ParamField body="sort" type="object">
+  Sorting configuration.
+  
+  <Expandable title="properties">
+    <ParamField body="sort.field" type="string">
+      Field name to sort by (e.g., "pushName", "createdAt").
+    </ParamField>
+    
+    <ParamField body="sort.order" type="string">
+      Sort order: "asc" or "desc".
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="contacts" type="array">
+  Array of contact objects.
+  
+  <Expandable title="properties">
+    <ResponseField name="id" type="string">
+      Unique contact identifier.
+    </ResponseField>
+    
+    <ResponseField name="remoteJid" type="string">
+      WhatsApp JID of the contact.
+    </ResponseField>
+    
+    <ResponseField name="pushName" type="string">
+      Contact's display name.
+    </ResponseField>
+    
+    <ResponseField name="owner" type="string">
+      Instance owner.
+    </ResponseField>
+    
+    <ResponseField name="profilePictureUrl" type="string">
+      URL of the contact's profile picture.
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp of when the contact was first saved.
+    </ResponseField>
+    
+    <ResponseField name="updatedAt" type="string">
+      ISO 8601 timestamp of last update.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total number of contacts matching the query.
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL
+curl --request POST \
+  --url https://api.example.com/chat/findContacts/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "limit": 50,
+    "offset": 0,
+    "sort": {
+      "field": "pushName",
+      "order": "asc"
+    }
+  }'
+```
+
+```bash cURL (With Filter)
+curl --request POST \
+  --url https://api.example.com/chat/findContacts/my-instance \
+  --header 'apikey: YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "where": {
+      "pushName": "John"
+    },
+    "limit": 20
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch(
+  'https://api.example.com/chat/findContacts/my-instance',
+  {
+    method: 'POST',
+    headers: {
+      'apikey': 'YOUR_API_KEY',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      limit: 50,
+      offset: 0,
+      sort: {
+        field: 'pushName',
+        order: 'asc'
+      }
+    })
+  }
+);
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/chat/findContacts/my-instance',
+    headers={
+        'apikey': 'YOUR_API_KEY',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'limit': 50,
+        'offset': 0,
+        'sort': {
+            'field': 'pushName',
+            'order': 'asc'
+        }
+    }
+)
+
+data = response.json()
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 Success
+{
+  "contacts": [
+    {
+      "id": "contact_123",
+      "remoteJid": "5511999999999@s.whatsapp.net",
+      "pushName": "John Doe",
+      "owner": "my-instance",
+      "profilePictureUrl": "https://example.com/profile-john.jpg",
+      "createdAt": "2024-03-04T10:30:00.000Z",
+      "updatedAt": "2024-03-04T12:45:00.000Z"
+    },
+    {
+      "id": "contact_456",
+      "remoteJid": "5511888888888@s.whatsapp.net",
+      "pushName": "Jane Smith",
+      "owner": "my-instance",
+      "profilePictureUrl": "https://example.com/profile-jane.jpg",
+      "createdAt": "2024-03-03T15:20:00.000Z",
+      "updatedAt": "2024-03-04T11:30:00.000Z"
+    }
+  ],
+  "total": 2
+}
+```
+
+```json 400 Bad Request
+{
+  "error": "Invalid query parameters",
+  "message": "Limit must be a positive number"
+}
+```
+
+```json 401 Unauthorized
+{
+  "error": "Unauthorized",
+  "message": "Invalid API key"
+}
+```
+
+```json 404 Not Found
+{
+  "error": "Instance not found",
+  "message": "The instance 'my-instance' does not exist"
+}
+```
+
+</ResponseExample>
+
+## Usage Notes
+
+<Tip>
+  Use pagination with `limit` and `offset` to efficiently load large contact lists.
+</Tip>
+
+<Info>
+  Contacts are automatically updated when you receive messages or interact with users on WhatsApp.
+</Info>
+
+<Note>
+  The `pushName` field reflects the name set by the contact themselves, not your saved contact name.
+</Note>

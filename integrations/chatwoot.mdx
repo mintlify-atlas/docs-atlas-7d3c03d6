@@ -1,0 +1,466 @@
+---
+title: Chatwoot Integration
+description: Connect Chatwoot customer support platform to WhatsApp through Evolution API for unified customer conversations
+---
+
+# Chatwoot Integration
+
+Chatwoot is an open-source customer engagement platform that brings all your customer conversations into one place. You can integrate Chatwoot with Evolution API to manage WhatsApp conversations through Chatwoot's unified inbox.
+
+## What is Chatwoot?
+
+Chatwoot provides:
+- Unified inbox for all customer conversations
+- Team collaboration and assignment
+- Canned responses and shortcuts
+- Conversation labels and filters
+- Customer profiles and context
+- Integration with multiple channels
+- Reporting and analytics
+
+## Enable Chatwoot Integration
+
+Add these environment variables to your `.env` file:
+
+```bash
+# Enable Chatwoot integration
+CHATWOOT_ENABLED=true
+
+# Message behavior settings
+CHATWOOT_MESSAGE_READ=true
+CHATWOOT_MESSAGE_DELETE=true
+
+# Bot contact for instance updates
+CHATWOOT_BOT_CONTACT=true
+
+# Database connection for message import (optional)
+CHATWOOT_IMPORT_DATABASE_CONNECTION_URI=postgresql://user:password@host:5432/chatwoot?sslmode=disable
+CHATWOOT_IMPORT_PLACEHOLDER_MEDIA_MESSAGE=true
+```
+
+### Environment Variables Explained
+
+<ResponseField name="CHATWOOT_ENABLED" type="boolean" required>
+  Enable or disable Chatwoot integration globally
+</ResponseField>
+
+<ResponseField name="CHATWOOT_MESSAGE_READ" type="boolean">
+  When true, sending a message in Chatwoot marks the customer's last message as read on WhatsApp. Default: true
+</ResponseField>
+
+<ResponseField name="CHATWOOT_MESSAGE_DELETE" type="boolean">
+  When false, deleting a message for everyone on WhatsApp will not delete it in Chatwoot. Default: true
+</ResponseField>
+
+<ResponseField name="CHATWOOT_BOT_CONTACT" type="boolean">
+  When true, creates a contact in Chatwoot to provide QR codes and instance update messages. Default: true
+</ResponseField>
+
+<ResponseField name="CHATWOOT_IMPORT_DATABASE_CONNECTION_URI" type="string">
+  PostgreSQL connection URI to import messages directly to Chatwoot database (optional)
+</ResponseField>
+
+<ResponseField name="CHATWOOT_IMPORT_PLACEHOLDER_MEDIA_MESSAGE" type="boolean">
+  When true, imports media messages as placeholders. Default: true
+</ResponseField>
+
+## Create Chatwoot Integration
+
+<Steps>
+  <Step title="Get Chatwoot credentials">
+    From your Chatwoot dashboard:
+    - Navigate to Settings → Integrations → API
+    - Create an API access token
+    - Note your Account ID from the URL
+  </Step>
+  
+  <Step title="Configure in Evolution API">
+    Use the create endpoint to connect your WhatsApp instance to Chatwoot.
+  </Step>
+  
+  <Step title="Configure webhook in Chatwoot">
+    Add the provided webhook URL to your Chatwoot inbox settings.
+  </Step>
+</Steps>
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://your-api.com/chatwoot/create/{instance} \
+  -H "apikey: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "accountId": "123456",
+    "token": "your-chatwoot-api-token",
+    "url": "https://chatwoot.yourdomain.com",
+    "nameInbox": "WhatsApp Support",
+    "signMsg": true,
+    "signDelimiter": "\n\n---\n",
+    "number": "5511999999999",
+    "reopenConversation": true,
+    "conversationPending": false,
+    "mergeBrazilContacts": true,
+    "importContacts": true,
+    "importMessages": false,
+    "daysLimitImportMessages": 60,
+    "autoCreate": true,
+    "organization": "My Company",
+    "logo": "https://yoursite.com/logo.png"
+  }'
+```
+
+```javascript JavaScript
+const chatwoot = await fetch('https://your-api.com/chatwoot/create/{instance}', {
+  method: 'POST',
+  headers: {
+    'apikey': 'your-api-key',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    enabled: true,
+    accountId: '123456',
+    token: 'your-chatwoot-api-token',
+    url: 'https://chatwoot.yourdomain.com',
+    nameInbox: 'WhatsApp Support',
+    signMsg: true,
+    signDelimiter: '\n\n---\n',
+    number: '5511999999999',
+    reopenConversation: true,
+    conversationPending: false,
+    mergeBrazilContacts: true,
+    importContacts: true,
+    importMessages: false,
+    daysLimitImportMessages: 60,
+    autoCreate: true,
+    organization: 'My Company',
+    logo: 'https://yoursite.com/logo.png'
+  })
+});
+
+const data = await chatwoot.json();
+console.log('Webhook URL:', data.webhook_url);
+```
+</CodeGroup>
+
+### Request Parameters
+
+<ResponseField name="enabled" type="boolean" required>
+  Enable or disable this integration
+</ResponseField>
+
+<ResponseField name="accountId" type="string" required>
+  Your Chatwoot account ID
+</ResponseField>
+
+<ResponseField name="token" type="string" required>
+  Chatwoot API access token
+</ResponseField>
+
+<ResponseField name="url" type="string" required>
+  Your Chatwoot installation URL (e.g., "https://chatwoot.yourdomain.com")
+</ResponseField>
+
+<ResponseField name="nameInbox" type="string">
+  Name for the inbox in Chatwoot. Defaults to instance name if not provided
+</ResponseField>
+
+<ResponseField name="signMsg" type="boolean" required>
+  Add agent signature to messages sent from Chatwoot
+</ResponseField>
+
+<ResponseField name="signDelimiter" type="string">
+  Delimiter for agent signature. Required if signMsg is true
+</ResponseField>
+
+<ResponseField name="number" type="string">
+  WhatsApp number associated with this inbox
+</ResponseField>
+
+<ResponseField name="reopenConversation" type="boolean">
+  Automatically reopen resolved conversations when customer responds
+</ResponseField>
+
+<ResponseField name="conversationPending" type="boolean">
+  Set new conversations to pending status instead of open
+</ResponseField>
+
+<ResponseField name="mergeBrazilContacts" type="boolean">
+  Merge contacts with Brazil country code variations (+55)
+</ResponseField>
+
+<ResponseField name="importContacts" type="boolean">
+  Import existing WhatsApp contacts to Chatwoot
+</ResponseField>
+
+<ResponseField name="importMessages" type="boolean">
+  Import message history to Chatwoot
+</ResponseField>
+
+<ResponseField name="daysLimitImportMessages" type="number">
+  Number of days of message history to import. Maximum: 365
+</ResponseField>
+
+<ResponseField name="autoCreate" type="boolean">
+  Automatically create inbox in Chatwoot if it doesn't exist
+</ResponseField>
+
+<ResponseField name="organization" type="string">
+  Organization name for branding
+</ResponseField>
+
+<ResponseField name="logo" type="string">
+  URL to organization logo
+</ResponseField>
+
+<ResponseField name="ignoreJids" type="array">
+  List of JIDs to exclude from Chatwoot sync
+</ResponseField>
+
+### Response
+
+```json
+{
+  "enabled": true,
+  "accountId": "123456",
+  "token": "your-chatwoot-api-token",
+  "url": "https://chatwoot.yourdomain.com",
+  "nameInbox": "WhatsApp Support",
+  "webhook_url": "https://your-api.com/chatwoot/webhook/my-instance"
+}
+```
+
+<Warning>
+  Copy the `webhook_url` from the response and add it to your Chatwoot inbox webhook settings.
+</Warning>
+
+## Find Chatwoot Configuration
+
+Retrieve the current Chatwoot configuration for your instance:
+
+<CodeGroup>
+```bash cURL
+curl -X GET https://your-api.com/chatwoot/find/{instance} \
+  -H "apikey: your-api-key"
+```
+
+```javascript JavaScript
+const config = await fetch('https://your-api.com/chatwoot/find/{instance}', {
+  headers: {
+    'apikey': 'your-api-key'
+  }
+}).then(res => res.json());
+
+console.log('Webhook URL:', config.webhook_url);
+```
+</CodeGroup>
+
+## Configure Chatwoot Webhook
+
+After creating the integration, configure the webhook in Chatwoot:
+
+<Steps>
+  <Step title="Open Chatwoot inbox settings">
+    Navigate to Settings → Inboxes → Select your WhatsApp inbox
+  </Step>
+  
+  <Step title="Add webhook URL">
+    In the "Webhooks" section, add the `webhook_url` provided by Evolution API
+  </Step>
+  
+  <Step title="Test the connection">
+    Send a message from Chatwoot and verify it appears in WhatsApp
+  </Step>
+</Steps>
+
+## Message Synchronization
+
+### WhatsApp to Chatwoot
+
+All incoming WhatsApp messages are automatically:
+- Created as conversations in Chatwoot
+- Assigned to the inbox
+- Include sender information and context
+- Support media attachments
+
+### Chatwoot to WhatsApp
+
+Messages sent from Chatwoot:
+- Are delivered through WhatsApp
+- Can include agent signatures (if `signMsg: true`)
+- Support media attachments
+- Mark WhatsApp messages as read (if `CHATWOOT_MESSAGE_READ=true`)
+
+## Contact Management
+
+### Auto Contact Creation
+
+When `autoCreate: true`, Evolution API automatically:
+- Creates contacts in Chatwoot for new WhatsApp conversations
+- Updates existing contact information
+- Links conversations to the correct contact
+
+### Brazil Contact Merging
+
+When `mergeBrazilContacts: true`, the system:
+- Handles variations of Brazilian phone numbers
+- Merges contacts with different formatting
+- Prevents duplicate contacts for the same person
+
+### Import Existing Contacts
+
+When `importContacts: true`:
+- Existing WhatsApp contacts are imported to Chatwoot
+- Contact names and avatars are synchronized
+- Updates are reflected in Chatwoot
+
+## Message Import
+
+You can import historical WhatsApp messages to Chatwoot:
+
+```json
+{
+  "importMessages": true,
+  "daysLimitImportMessages": 60
+}
+```
+
+<Note>
+  Message import requires `CHATWOOT_IMPORT_DATABASE_CONNECTION_URI` to be configured in your environment.
+</Note>
+
+<Warning>
+  Importing large message histories can take significant time and resources. Start with a lower `daysLimitImportMessages` value.
+</Warning>
+
+## Conversation Management
+
+### Conversation Status
+
+**Reopen Conversations**: When `reopenConversation: true`
+- Resolved conversations automatically reopen when customer responds
+- Ensures no customer messages are missed
+
+**Pending Status**: When `conversationPending: true`
+- New conversations start in "pending" status
+- Requires manual assignment or automation to move to "open"
+- Useful for triage workflows
+
+### Delete Behavior
+
+Control how message deletions are handled:
+
+```bash
+# Sync deletions from WhatsApp to Chatwoot
+CHATWOOT_MESSAGE_DELETE=true
+
+# Keep messages in Chatwoot even when deleted on WhatsApp
+CHATWOOT_MESSAGE_DELETE=false
+```
+
+## Bot Contact
+
+When `CHATWOOT_BOT_CONTACT=true`, Evolution API creates a special bot contact that:
+- Receives QR codes during instance connection
+- Gets notifications about instance status changes
+- Provides system updates and alerts
+
+## Agent Signatures
+
+Add agent names to messages sent from Chatwoot:
+
+```json
+{
+  "signMsg": true,
+  "signDelimiter": "\n\n---\n"
+}
+```
+
+Example message with signature:
+```
+Hello! How can I help you today?
+
+---
+John (Support Team)
+```
+
+## Use Cases
+
+<Accordion title="Customer Support Inbox">
+  Centralize WhatsApp support:
+  - Manage all WhatsApp conversations in Chatwoot
+  - Assign conversations to team members
+  - Use canned responses for common questions
+  - Track conversation metrics and SLAs
+</Accordion>
+
+<Accordion title="Multi-Channel Support">
+  Unified customer experience:
+  - Combine WhatsApp with email, live chat, and social media
+  - View complete customer history across channels
+  - Provide consistent support experience
+  - Route conversations based on channel and priority
+</Accordion>
+
+<Accordion title="Team Collaboration">
+  Improve team efficiency:
+  - Private notes between team members
+  - Conversation assignments and transfers
+  - Real-time collaboration on customer issues
+  - Knowledge base integration
+</Accordion>
+
+<Accordion title="Contact Center Operations">
+  Scale customer support:
+  - Queue management and distribution
+  - Performance monitoring and reporting
+  - Automation and chatbot integration
+  - Business hours and auto-assignment rules
+</Accordion>
+
+## Best Practices
+
+<Note>
+  Always test the integration with a small number of conversations before enabling contact and message import.
+</Note>
+
+- **Use meaningful inbox names**: Set `nameInbox` to help agents identify the WhatsApp channel
+- **Enable signatures carefully**: Only use `signMsg: true` if your use case requires it
+- **Monitor import progress**: Start with small `daysLimitImportMessages` values
+- **Set up automation**: Use Chatwoot's automation features for conversation routing
+- **Train your team**: Ensure agents understand WhatsApp-specific features and limitations
+
+## Troubleshooting
+
+<Accordion title="Messages not appearing in Chatwoot">
+  - Verify `CHATWOOT_ENABLED=true` in environment
+  - Check that integration is enabled: `enabled: true`
+  - Confirm webhook URL is configured in Chatwoot inbox settings
+  - Verify Chatwoot URL and API token are correct
+  - Check Chatwoot logs for webhook delivery errors
+</Accordion>
+
+<Accordion title="Duplicate contacts being created">
+  - Enable `mergeBrazilContacts: true` for Brazilian numbers
+  - Check that phone numbers are formatted consistently
+  - Verify contact matching logic in Chatwoot
+</Accordion>
+
+<Accordion title="Messages not sending from Chatwoot">
+  - Verify webhook URL is correctly configured
+  - Check that the instance is connected to WhatsApp
+  - Ensure API key has proper permissions
+  - Review Evolution API logs for webhook processing errors
+</Accordion>
+
+<Accordion title="Import not working">
+  - Verify `CHATWOOT_IMPORT_DATABASE_CONNECTION_URI` is configured
+  - Check database connectivity and credentials
+  - Ensure Chatwoot database is accessible from Evolution API
+  - Start with a smaller `daysLimitImportMessages` value
+</Accordion>
+
+## Related Integrations
+
+- [Typebot](/integrations/typebot) - Interactive chatbot builder
+- [OpenAI](/integrations/openai) - AI-powered automation
+- [N8N](/integrations/n8n) - Workflow automation
